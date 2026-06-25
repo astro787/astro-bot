@@ -7,6 +7,11 @@ from dotenv import load_dotenv
 import requests
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+from io import BytesIO
 
 load_dotenv()
 
@@ -20,9 +25,8 @@ class PingHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
-    
     def log_message(self, format, *args):
-        pass  # Не засоряем логи
+        pass
 
 def run_keepalive():
     port = int(os.getenv("PORT", 10000))
@@ -162,11 +166,8 @@ CITY_TIMEZONES = {
 }
 
 HOUSE_SYSTEMS = {
-    b'P': 'Плацидус',
-    b'K': 'Кох',
-    b'W': 'Whole Sign',
-    b'O': 'Порфирий',
-    b'C': 'Кампанус',
+    b'P': 'Плацидус', b'K': 'Кох', b'W': 'Whole Sign',
+    b'O': 'Порфирий', b'C': 'Кампанус',
 }
 
 DEFAULT_HOUSE_SYSTEM = b'P'
@@ -266,12 +267,128 @@ def menu_btn():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
         [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
+        [InlineKeyboardButton("🎨 Карта (графика)", callback_data="chart")],
         [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
         [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
         [InlineKeyboardButton("💑 Совместимость", callback_data="compat")],
         [InlineKeyboardButton("🌙 Луна", callback_data="moon")],
         [InlineKeyboardButton("📅 Гороскоп", callback_data="daily")]
     ])
+
+# ===== ГРАФИЧЕСКАЯ КАРТА =====
+def draw_natal_chart(natal, city_name='', birth_time=''):
+    """Рисует графическую натальную карту"""
+    fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': 'polar'})
+    
+    # Настройка полярной системы
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
+    ax.set_ylim(0, 1.2)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.spines['polar'].set_visible(True)
+    ax.spines['polar'].set_color('#1a1a2e')
+    ax.spines['polar'].set_linewidth(3)
+    ax.set_facecolor('#fafafa')
+    fig.patch.set_facecolor('white')
+    
+    # Знаки зодиака по внешнему кругу
+    for i, sign in enumerate(SIGN_NAMES):
+        angle = np.radians(i * 30)
+        ax.annotate(f"{SIGN_EMOJI.get(sign, '')} {sign}",
+                    xy=(angle, 1.12), ha='center', va='center',
+                    fontsize=9, color='#2c3e50', weight='bold',
+                    rotation=np.degrees(angle) if i < 6 else np.degrees(angle) + 180)
+    
+    # Концентрические круги
+    for r in [0.25, 0.45, 0.65, 0.85]:
+        ax.plot(np.linspace(0, 2*np.pi, 200), [r]*200,
+                color='#bdc3c7', linewidth=0.5, alpha=0.4, linestyle='--')
+    
+    # Линии домов
+    for i, house in enumerate(natal.get('houses', [])):
+        start_angle = np.radians(house['lon'])
+        ax.plot([start_angle, start_angle], [0.1, 0.95],
+                color='#8e44ad', linewidth=1.5, alpha=0.6)
+        # Номер дома
+        mid_angle = start_angle + np.radians(15)
+        ax.annotate(str(house['house_num']),
+                    xy=(mid_angle, 0.92), ha='center', va='center',
+                    fontsize=11, color='#8e44ad', weight='bold',
+                    bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
+    
+    # Планеты
+    planet_styles = {
+        'Солнце': {'color': '#f39c12', 'symbol': '☉', 'size': 14},
+        'Луна': {'color': '#95a5a6', 'symbol': '☽', 'size': 12},
+        'Меркурий': {'color': '#1abc9c', 'symbol': '☿', 'size': 10},
+        'Венера': {'color': '#e91e63', 'symbol': '♀', 'size': 11},
+        'Марс': {'color': '#e74c3c', 'symbol': '♂', 'size': 11},
+        'Юпитер': {'color': '#f1c40f', 'symbol': '♃', 'size': 13},
+        'Сатурн': {'color': '#34495e', 'symbol': '♄', 'size': 12},
+        'Уран': {'color': '#00bcd4', 'symbol': '♅', 'size': 10},
+        'Нептун': {'color': '#2196f3', 'symbol': '♆', 'size': 10},
+        'Плутон': {'color': '#9b59b6', 'symbol': '♇', 'size': 9},
+    }
+    
+    # Рассчитываем позиции планет по радиусу
+    planet_order = ['Солнце', 'Меркурий', 'Венера', 'Марс', 'Луна',
+                    'Юпитер', 'Сатурн', 'Уран', 'Нептун', 'Плутон']
+    
+    for name, data in natal.items():
+        if name in ['houses', 'Асцендент', 'MC']:
+            continue
+        
+        lon = data['lon']
+        angle = np.radians(lon)
+        
+        # Позиция по радиусу
+        if name in planet_order:
+            r = 0.15 + planet_order.index(name) * 0.07
+        else:
+            r = 0.6
+        
+        style = planet_styles.get(name, {'color': '#2c3e50', 'symbol': '', 'size': 10})
+        
+        # Линия от центра
+        ax.plot([angle, angle], [0.05, r], color=style['color'], linewidth=1, alpha=0.4)
+        
+        # Планета
+        ax.plot(angle, r, 'o', color=style['color'], markersize=style['size'],
+                markeredgecolor='white', markeredgewidth=2, zorder=5)
+        
+        # Подпись
+        label = f"{style['symbol']} {data['degree']}°"
+        ax.annotate(label, xy=(angle, r + 0.07), ha='center', va='bottom',
+                    fontsize=7, color=style['color'], weight='bold',
+                    bbox=dict(boxstyle='round,pad=0.1', facecolor='white', alpha=0.7, edgecolor='none'))
+    
+    # Асцендент
+    asc_lon = natal.get('Асцендент', {}).get('lon', 0)
+    asc_angle = np.radians(asc_lon)
+    ax.plot([asc_angle, asc_angle], [0.1, 0.95], color='#ff5722', linewidth=3, zorder=2)
+    ax.annotate('ASC', xy=(asc_angle, 1.0), ha='center', va='center',
+                fontsize=13, color='#ff5722', weight='bold')
+    
+    # MC
+    mc_lon = natal.get('MC', {}).get('lon', 0)
+    mc_angle = np.radians(mc_lon)
+    ax.annotate('MC', xy=(mc_angle, 1.0), ha='center', va='center',
+                fontsize=13, color='#4caf50', weight='bold')
+    
+    # Заголовок
+    title = 'Натальная карта'
+    if city_name:
+        title += f'\n{city_name.title()}'
+    if birth_time:
+        title += f' | {birth_time}'
+    ax.set_title(title, fontsize=16, color='#1a1a2e', weight='bold', pad=25)
+    
+    buf = BytesIO()
+    plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white', edgecolor='none')
+    buf.seek(0)
+    plt.close()
+    return buf
 
 async def start(update, ctx):
     ctx.user_data['mode'] = ''
@@ -317,6 +434,19 @@ async def btn(update, ctx):
             text += f"\n🔹 *Аспекты:*\n"
             for a in aspects[:6]: text += f"• {a}\n"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
+    elif d == 'chart':
+        if uid not in users: await q.edit_message_text("📝 Введите данные", reply_markup=back_btn()); return
+        u = users[uid]
+        await q.message.reply_text("🎨 Рисую карту...")
+        natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'],
+                           u['lat'], u['lon'], u['city'])
+        birth_time_str = f"{u['hour']:02d}:{u['minute']:02d}"
+        img = draw_natal_chart(natal, u['city'], birth_time_str)
+        await update.effective_message.reply_photo(
+            photo=img,
+            caption=f"🌟 Натальная карта\n📍 {u['city'].title()} | 🕐 {birth_time_str}",
+            reply_markup=back_btn()
+        )
     elif d == 'houses':
         if uid not in users: await q.edit_message_text("📝 Введите данные", reply_markup=back_btn()); return
         u = users[uid]; natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
@@ -380,6 +510,7 @@ async def msg(update, ctx):
         users[uid] = {'sign':sign,'day':day,'month':month,'year':year,'hour':hour,'minute':minute,'lat':lat,'lon':lon,'city':city_name}
         kb = [[InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
               [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
+              [InlineKeyboardButton("🎨 Карта (графика)", callback_data="chart")],
               [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
               [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
               [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata")],
@@ -397,6 +528,5 @@ def main():
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
-    # Запускаем keep-alive сервер в отдельном потоке
     threading.Thread(target=run_keepalive, daemon=True).start()
     main()
