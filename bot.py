@@ -132,7 +132,6 @@ CITIES = {
     'нижневартовск': (60.94, 76.58),
     'ханты-мансийск': (61.00, 69.00),
     'салехард': (66.53, 66.61),
-    'челябинск': (55.16, 61.43),
     'златоуст': (55.17, 59.67),
     'миасс': (55.05, 60.11),
     'копейск': (55.10, 61.62),
@@ -165,7 +164,7 @@ CITIES = {
     'южно-сахалинск': (46.96, 142.74),
     'петропавловск-камчатский': (53.02, 158.65),
     'магадан': (59.56, 150.80),
-    'анадЫрь': (64.73, 177.51),
+    'анадырь': (64.73, 177.51),
     'комсомольск-на-амуре': (50.55, 137.01),
     'уссурийск': (43.80, 131.95),
     'находка': (42.82, 132.87),
@@ -185,7 +184,6 @@ CITIES = {
     'одесса': (46.48, 30.73),
     'днепр': (48.47, 35.04),
     'львов': (49.84, 24.03),
-    'одесса': (46.48, 30.73),
     'астана': (51.17, 71.43),
     'алматы': (43.26, 76.93),
     'шымкент': (42.32, 69.60),
@@ -206,7 +204,7 @@ CITIES = {
     'кишинёв': (47.01, 28.86),
     'кишинев': (47.01, 28.86),
 
-    # ===== Международные (оставляем те, что были) =====
+    # ===== Международные =====
     'нью-йорк': (40.71, -74.00),
     'лондон': (51.51, -0.13),
     'париж': (48.86, 2.35),
@@ -216,6 +214,84 @@ CITIES = {
     'дубай': (25.20, 55.27),
     'стамбул': (41.01, 28.98),
 }
+
+# ===== ЧАСОВЫЕ ПОЯСА (UTC смещение в часах) =====
+CITY_TIMEZONES = {
+    # Москва и СПб (UTC+3)
+    'москва': 3, 'мск': 3, 'питер': 3, 'спб': 3, 'санкт-петербург': 3,
+    
+    # Центральный ФО (UTC+3)
+    'воронеж': 3, 'белгород': 3, 'брянск': 3, 'владимир': 3, 'иваново': 3,
+    'калуга': 3, 'кострома': 3, 'курск': 3, 'липецк': 3, 'орёл': 3, 'орел': 3,
+    'рязань': 3, 'смоленск': 3, 'тамбов': 3, 'тверь': 3, 'тула': 3, 'ярославль': 3,
+    
+    # Северо-Западный ФО
+    'калининград': 2, 'архангельск': 3, 'вологда': 3, 'мурманск': 3,
+    'петрозаводск': 3, 'сыктывкар': 3, 'великий новгород': 3, 'псков': 3, 'череповец': 3,
+    
+    # Южный ФО
+    'ростов': 3, 'ростов-на-дону': 3, 'краснодар': 3, 'сочи': 3, 'волгоград': 3,
+    'астрахань': 4, 'волжский': 3, 'новороссийск': 3, 'таганрог': 3, 'шахты': 3,
+    'армавир': 3, 'симферополь': 3, 'севастополь': 3, 'майкоп': 3, 'элиста': 3,
+    
+    # Северо-Кавказский ФО (UTC+3)
+    'пятигорск': 3, 'ставрополь': 3, 'махачкала': 3, 'грозный': 3,
+    'нальчик': 3, 'владикавказ': 3, 'черкесск': 3, 'назрань': 3,
+    'хасавюрт': 3, 'дербент': 3,
+    
+    # Приволжский ФО
+    'нижний': 3, 'нн': 3, 'нижний новгород': 3, 'казань': 3, 'саратов': 4,
+    'тольятти': 4, 'ижевск': 4, 'ульяновск': 4, 'чебоксары': 3, 'киров': 3,
+    'пенза': 3, 'саранск': 3, 'набережные челны': 3, 'йошкар-ола': 3,
+    'энгельс': 4, 'дзержинск': 3, 'альметьевск': 3,
+    'самара': 4, 'уфа': 5, 'пермь': 5, 'оренбург': 5, 'стерлитамак': 5,
+    
+    # Уральский ФО (UTC+5)
+    'екатеринбург': 5, 'екб': 5, 'челябинск': 5, 'тюмень': 5,
+    'магнитогорск': 5, 'сургут': 5, 'нижний тагил': 5, 'курган': 5,
+    'нижневартовск': 5, 'ханты-мансийск': 5, 'салехард': 5,
+    'златоуст': 5, 'миасс': 5, 'копейск': 5,
+    
+    # Сибирский ФО
+    'омск': 6, 'новосибирск': 7, 'нск': 7, 'красноярск': 7, 'барнаул': 7,
+    'новокузнецк': 7, 'кемерово': 7, 'томск': 7, 'абакан': 7, 'норильск': 7,
+    'бийск': 7, 'прокопьевск': 7, 'кызыл': 7, 'горно-алтайск': 7,
+    'иркутск': 8, 'улан-удэ': 8, 'чита': 9, 'братск': 8, 'ангарск': 8,
+    
+    # Дальневосточный ФО
+    'владивосток': 10, 'хабаровск': 10, 'благовещенск': 9, 'уссурийск': 10,
+    'находка': 10, 'артём': 10, 'артем': 10, 'комсомольск-на-амуре': 10,
+    'якутск': 9, 'южно-сахалинск': 11, 'петропавловск-камчатский': 12,
+    'магадан': 11, 'анадырь': 12,
+    
+    # СНГ
+    'минск': 3, 'гомель': 3, 'могилёв': 3, 'могилев': 3, 'витебск': 3,
+    'гродно': 3, 'брест': 3,
+    'киев': 2, 'харьков': 2, 'одесса': 2, 'днепр': 2, 'львов': 2,
+    'астана': 5, 'алматы': 5, 'шымкент': 5, 'караганда': 5,
+    'ташкент': 5, 'самарканд': 5, 'бухара': 5,
+    'баку': 4, 'ганжа': 4,
+    'ереван': 4, 'тбилиси': 4, 'батуми': 4,
+    'бишкек': 6, 'ош': 6,
+    'душанбе': 5, 'худжанд': 5,
+    'ашхабад': 5,
+    'кишинёв': 2, 'кишинев': 2,
+    
+    # Международные
+    'нью-йорк': -5, 'лондон': 0, 'париж': 1, 'берлин': 1,
+    'токио': 9, 'пекин': 8, 'дубай': 4, 'стамбул': 3,
+}
+
+# ===== СИСТЕМЫ ДОМОВ =====
+HOUSE_SYSTEMS = {
+    b'P': 'Плацидус',
+    b'K': 'Кох',
+    b'W': 'Whole Sign',
+    b'O': 'Порфирий',
+    b'C': 'Кампанус',
+}
+
+DEFAULT_HOUSE_SYSTEM = b'P'  # Плацидус по умолчанию
 
 PLANETS = {'Солнце': swe.SUN, 'Луна': swe.MOON, 'Меркурий': swe.MERCURY,
            'Венера': swe.VENUS, 'Марс': swe.MARS, 'Юпитер': swe.JUPITER,
@@ -236,18 +312,81 @@ def sign_from_lon(lon):
 def degree_in_sign(lon):
     return int(lon % 30)
 
-def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62):
-    jd = swe.julday(year, month, day, hour + minute/60.0)
+def get_timezone(city_name, lat=None, lon=None):
+    """Возвращает UTC смещение в часах."""
+    city_key = city_name.lower().strip()
+    if city_key in CITY_TIMEZONES:
+        return CITY_TIMEZONES[city_key]
+    # Вычисляем по долготе (приблизительно: каждые 15° = 1 час)
+    if lon is not None:
+        return round(lon / 15.0)
+    return 3  # По умолчанию Москва
+
+def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62, 
+               city_name='москва', house_system=b'P'):
+    """
+    Точный расчёт натальной карты с учётом часового пояса.
+    """
+    # 1. Определяем часовой пояс
+    utc_offset = get_timezone(city_name, lat, lon)
+    
+    # 2. Конвертируем местное время в UTC
+    utc_hour = hour - utc_offset
+    if utc_hour < 0:
+        utc_hour += 24
+    elif utc_hour >= 24:
+        utc_hour -= 24
+    
+    utc_total = utc_hour + minute / 60.0
+    
+    # 3. Вычисляем юлианскую дату в UTC
+    jd = swe.julday(year, month, day, utc_total)
+    
+    # 4. Расчёт планет
     natal = {}
     for name, pid in PLANETS.items():
-        lon_deg = swe.calc_ut(jd, pid)[0][0]
-        natal[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
-    houses, ascmc = swe.houses(jd, lat, lon, b'P')
-    natal['Асцендент'] = {'sign': sign_from_lon(ascmc[0]), 'degree': degree_in_sign(ascmc[0]), 'lon': ascmc[0]}
-    natal['MC'] = {'sign': sign_from_lon(ascmc[1]), 'degree': degree_in_sign(ascmc[1]), 'lon': ascmc[1]}
+        try:
+            result, _ = swe.calc_ut(jd, pid)
+            lon_deg = result[0] if isinstance(result, tuple) else result[0]
+            natal[name] = {
+                'sign': sign_from_lon(lon_deg),
+                'degree': degree_in_sign(lon_deg),
+                'lon': lon_deg
+            }
+        except:
+            continue
+    
+    # 5. Расчёт домов (с защитой от полярных широт)
+    if abs(lat) > 66.5:
+        house_system = b'W'  # За полярным кругом — Whole Sign
+    
+    try:
+        houses, ascmc = swe.houses(jd, lat, lon, house_system)
+    except:
+        houses, ascmc = swe.houses(jd, lat, lon, b'W')
+    
+    # Асцендент и MC
+    natal['Асцендент'] = {
+        'sign': sign_from_lon(ascmc[0]),
+        'degree': degree_in_sign(ascmc[0]),
+        'lon': ascmc[0]
+    }
+    natal['MC'] = {
+        'sign': sign_from_lon(ascmc[1]),
+        'degree': degree_in_sign(ascmc[1]),
+        'lon': ascmc[1]
+    }
+    
+    # Дома
     natal['houses'] = []
     for i in range(12):
-        natal['houses'].append({'sign': sign_from_lon(houses[i]), 'degree': degree_in_sign(houses[i])})
+        natal['houses'].append({
+            'house_num': i + 1,
+            'sign': sign_from_lon(houses[i]),
+            'degree': degree_in_sign(houses[i]),
+            'lon': houses[i]
+        })
+    
     return natal
 
 def calc_transits():
@@ -255,8 +394,11 @@ def calc_transits():
     jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute/60.0)
     transits = {}
     for name, pid in PLANETS.items():
-        lon_deg = swe.calc_ut(jd, pid)[0][0]
-        transits[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
+        try:
+            lon_deg = swe.calc_ut(jd, pid)[0][0]
+            transits[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
+        except:
+            continue
     return transits
 
 def get_aspects(planets):
@@ -264,20 +406,32 @@ def get_aspects(planets):
     names = list(planets.keys())
     for i in range(len(names)):
         for j in range(i+1, len(names)):
-            if names[i] in ['Асцендент','MC','houses'] or names[j] in ['Асцендент','MC','houses']: continue
+            if names[i] in ['Асцендент','MC','houses'] or names[j] in ['Асцендент','MC','houses']:
+                continue
             diff = abs(planets[names[i]]['lon'] - planets[names[j]]['lon']) % 360
-            if diff > 180: diff = 360 - diff
+            if diff > 180:
+                diff = 360 - diff
             asp = None
-            if diff <= 5: asp = "соединение"
-            elif abs(diff-60) <= 5: asp = "секстиль"
-            elif abs(diff-90) <= 6: asp = "квадрат"
-            elif abs(diff-120) <= 6: asp = "тригон"
-            elif abs(diff-180) <= 6: asp = "оппозиция"
-            if asp: aspects_list.append(f"{names[i]} {asp} {names[j]}")
+            if diff <= 5:
+                asp = "соединение"
+            elif abs(diff-60) <= 5:
+                asp = "секстиль"
+            elif abs(diff-90) <= 6:
+                asp = "квадрат"
+            elif abs(diff-120) <= 6:
+                asp = "тригон"
+            elif abs(diff-180) <= 6:
+                asp = "оппозиция"
+            if asp:
+                aspects_list.append(f"{names[i]} {asp} {names[j]}")
     return aspects_list
 
 def parse_city(city_str):
-    return CITIES.get(city_str.lower().strip(), (55.75, 37.62))
+    """Возвращает (lat, lon, city_name)"""
+    city_key = city_str.lower().strip()
+    if city_key in CITIES:
+        return CITIES[city_key][0], CITIES[city_key][1], city_key
+    return 55.75, 37.62, 'москва'
 
 def back_btn():
     return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Меню", callback_data="back")]])
@@ -305,23 +459,40 @@ async def start(update, ctx):
     )
 
 async def btn(update, ctx):
-    q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
+    q = update.callback_query
+    await q.answer()
+    d = q.data
+    uid = q.from_user.id
 
     if d == 'forecast':
         if uid in users:
             ctx.user_data['mode'] = 'fp'
-            kb = [[InlineKeyboardButton("📅 День", callback_data="f_day"), InlineKeyboardButton("📆 Неделя", callback_data="f_week")],
-                  [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Меню", callback_data="back")]]
-            await q.edit_message_text(f"✨ *{users[uid]['sign']}* ✨\n\nПериод:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            kb = [
+                [InlineKeyboardButton("📅 День", callback_data="f_day"),
+                 InlineKeyboardButton("📆 Неделя", callback_data="f_week")],
+                [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")],
+                [InlineKeyboardButton("🔙 Меню", callback_data="back")]
+            ]
+            await q.edit_message_text(
+                f"✨ *{users[uid]['sign']}* ✨\n\nПериод:",
+                reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown'
+            )
         else:
-            await q.edit_message_text("📝 Введите: *ДД.ММ.ГГГГ ЧЧ ММ Город*\nПример: 15.05.1990 14 30 Москва", reply_markup=back_btn(), parse_mode='Markdown')
+            await q.edit_message_text(
+                "📝 Введите: *ДД.ММ.ГГГГ ЧЧ ММ Город*\nПример: 15.05.1990 14 30 Москва",
+                reply_markup=back_btn(), parse_mode='Markdown'
+            )
 
     elif d.startswith('f_'):
-        if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
-        u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
+        if uid not in users:
+            await q.message.reply_text("Сначала введите данные!")
+            return
+        u = users[uid]
+        period = {'day': 'день', 'week': 'неделю', 'month': 'месяц'}[d[2:]]
         await q.message.reply_text("🔮 Рассчитываю и генерирую прогноз...")
         
-        natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'])
+        natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'],
+                           u['lat'], u['lon'], u['city'])
         transits = calc_transits()
         aspects = get_aspects(natal)
         
@@ -329,30 +500,44 @@ async def btn(update, ctx):
         astro += f"🌙 {natal['Луна']['sign']} {natal['Луна']['degree']}°, "
         astro += f"ASC {natal['Асцендент']['sign']}, MC {natal['MC']['sign']}\n"
         astro += f"Транзиты: ☀ {transits['Солнце']['sign']}, 🌙 {transits['Луна']['sign']}, ♂ {transits['Марс']['sign']}\n"
-        if aspects: astro += f"Аспекты: {', '.join(aspects[:3])}"
+        if aspects:
+            astro += f"Аспекты: {', '.join(aspects[:3])}"
         
         prompt = f"Ты астролог. Прогноз на {period}:\n{astro}\n\n6-8 предложений по сферам: любовь, карьера, здоровье, совет. С эмодзи."
         forecast = ask_ai(prompt) or f"✨ Прогноз на {period}\n\n❤️ Любовь\n💼 Карьера\n🏃 Здоровье"
-        await update.effective_message.reply_text(f"🌟 *Прогноз на {period}* 🌟\n\n{forecast}", reply_markup=back_btn(), parse_mode='Markdown')
+        await update.effective_message.reply_text(
+            f"🌟 *Прогноз на {period}* 🌟\n\n{forecast}",
+            reply_markup=back_btn(), parse_mode='Markdown'
+        )
 
     elif d == 'natal':
-        if uid not in users: await q.edit_message_text("📝 Введите данные", reply_markup=back_btn()); return
-        u = users[uid]; natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'])
+        if uid not in users:
+            await q.edit_message_text("📝 Введите данные", reply_markup=back_btn())
+            return
+        u = users[uid]
+        natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'],
+                           u['lat'], u['lon'], u['city'])
         aspects = get_aspects(natal)
-        text = f"🌟 *Натальная карта*\n📍 {u['city']} ({u['lat']}, {u['lon']})\n🕐 {u['hour']:02d}:{u['minute']:02d} UTC\n\n"
+        text = f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d} (местное)\n\n"
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Уран','Нептун','Плутон','Асцендент','MC']:
-            if p in natal: text += f"{SIGN_EMOJI.get(natal[p]['sign'],'')} {p}: *{natal[p]['sign']}* {natal[p]['degree']}°\n"
+            if p in natal:
+                text += f"{SIGN_EMOJI.get(natal[p]['sign'],'')} {p}: *{natal[p]['sign']}* {natal[p]['degree']}°\n"
         if aspects:
             text += f"\n🔹 *Аспекты:*\n"
-            for a in aspects[:6]: text += f"• {a}\n"
+            for a in aspects[:6]:
+                text += f"• {a}\n"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
 
     elif d == 'houses':
-        if uid not in users: await q.edit_message_text("📝 Введите данные", reply_markup=back_btn()); return
-        u = users[uid]; natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'])
-        text = f"🏠 *Дома гороскопа*\n📍 {u['city']}\n🕐 {u['hour']:02d}:{u['minute']:02d}\n\n"
-        for i, house in enumerate(natal['houses']):
-            text += f"*{i+1} дом*: {SIGN_EMOJI.get(house['sign'],'')} {house['sign']} {house['degree']}°\n"
+        if uid not in users:
+            await q.edit_message_text("📝 Введите данные", reply_markup=back_btn())
+            return
+        u = users[uid]
+        natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'],
+                           u['lat'], u['lon'], u['city'])
+        text = f"🏠 *Дома гороскопа*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d} (местное)\n\n"
+        for house in natal['houses']:
+            text += f"*{house['house_num']} дом*: {SIGN_EMOJI.get(house['sign'],'')} {house['sign']} {house['degree']}°\n"
         text += f"\n⬆ Асцендент: *{natal['Асцендент']['sign']}* {natal['Асцендент']['degree']}°"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
 
@@ -360,7 +545,8 @@ async def btn(update, ctx):
         transits = calc_transits()
         text = f"🪐 *Транзиты*\n📅 {datetime.now().strftime('%d.%m.%Y %H:%M')} UTC\n\n"
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн']:
-            text += f"{SIGN_EMOJI.get(transits[p]['sign'],'')} {p}: *{transits[p]['sign']}* {transits[p]['degree']}°\n"
+            if p in transits:
+                text += f"{SIGN_EMOJI.get(transits[p]['sign'],'')} {p}: *{transits[p]['sign']}* {transits[p]['degree']}°\n"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
 
     elif d == 'compat':
@@ -371,7 +557,9 @@ async def btn(update, ctx):
         transits = calc_transits()
         phase = datetime.now().day % 8
         phases = {0:"🌑 Новолуние",1:"🌒",2:"🌓",3:"🌔",4:"🌕 Полнолуние",5:"🌖",6:"🌗",7:"🌘"}
-        text = f"🌙 *Луна*\n\nФаза: {phases[phase]}\nЗнак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
+        text = f"🌙 *Луна*\n\nФаза: {phases.get(phase, '🌑')}\n"
+        if 'Луна' in transits:
+            text += f"Знак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
 
     elif d == 'daily':
@@ -379,25 +567,37 @@ async def btn(update, ctx):
         transits = calc_transits()
         for sign in SIGN_NAMES:
             text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
-            if sign == transits['Солнце']['sign']: text += "☀️ Солнце в знаке!\n"
-            elif sign == transits['Луна']['sign']: text += "🌙 Луна в знаке\n"
-            else: text += "✨ Хороший день\n"
-        await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
+            if 'Солнце' in transits and sign == transits['Солнце']['sign']:
+                text += "☀️ Солнце в знаке!\n"
+            elif 'Луна' in transits and sign == transits['Луна']['sign']:
+                text += "🌙 Луна в знаке\n"
+            else:
+                text += "✨ Хороший день\n"
+        await q.edit_message_text(text[:4000], reply_markup=back_btn(), parse_mode='Markdown')
 
     elif d == 'back':
         ctx.user_data['mode'] = ''
         await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
 
 async def msg(update, ctx):
-    t = update.message.text.strip(); m = ctx.user_data.get('mode',''); uid = update.effective_user.id
+    t = update.message.text.strip()
+    m = ctx.user_data.get('mode', '')
+    uid = update.effective_user.id
     
     if m == 'compat':
         parts = t.title().split()
-        if len(parts)==2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
+        if len(parts) == 2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
             prompt = f"Совместимость {parts[0]} и {parts[1]}. Процент и 2-3 предложения."
             fc = ask_ai(prompt) or "70% — Хорошая совместимость"
             ctx.user_data['mode'] = ''
-            await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💑 Ещё", callback_data="compat"),InlineKeyboardButton("🔙 Меню", callback_data="back")]]), parse_mode='Markdown')
+            await update.message.reply_text(
+                f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("💑 Ещё", callback_data="compat"),
+                     InlineKeyboardButton("🔙 Меню", callback_data="back")]
+                ]),
+                parse_mode='Markdown'
+            )
             return
         await update.message.reply_text("❌ *Овен Телец*", reply_markup=back_btn(), parse_mode='Markdown')
         return
@@ -406,7 +606,6 @@ async def msg(update, ctx):
     try:
         parts = t.split()
         if len(parts) >= 3:
-            # Формат: ДД.ММ.ГГГГ ЧЧ ММ [Город]
             date_part = parts[0]
             day, month, year = map(int, date_part.split('.'))
             hour = int(parts[1]) if len(parts) > 1 else 12
@@ -419,19 +618,29 @@ async def msg(update, ctx):
         else:
             raise ValueError
         
-        lat, lon = parse_city(city_str)
-        city_name = city_str.title()
+        lat, lon, city_name = parse_city(city_str)
         sign = get_zodiac_sign(day, month)
-        users[uid] = {'sign': sign, 'day': day, 'month': month, 'year': year,
-                      'hour': hour, 'minute': minute, 'lat': lat, 'lon': lon, 'city': city_name}
+        users[uid] = {
+            'sign': sign,
+            'day': day,
+            'month': month,
+            'year': year,
+            'hour': hour,
+            'minute': minute,
+            'lat': lat,
+            'lon': lon,
+            'city': city_name
+        }
         
-        kb = [[InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
-              [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
-              [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
-              [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
-              [InlineKeyboardButton("🔙 Меню", callback_data="back")]]
+        kb = [
+            [InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
+            [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
+            [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
+            [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
+            [InlineKeyboardButton("🔙 Меню", callback_data="back")]
+        ]
         await update.message.reply_text(
-            f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name}",
+            f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}",
             reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown'
         )
     except:
