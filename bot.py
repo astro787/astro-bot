@@ -575,6 +575,12 @@ async def btn(update, ctx):
                 text += "✨ Хороший день\n"
         await q.edit_message_text(text[:4000], reply_markup=back_btn(), parse_mode='Markdown')
 
+       elif d == 'newdata':
+        ctx.user_data['mode'] = 'newdata'
+        await q.edit_message_text(
+            "📝 Введите новые данные:\n*ДД.ММ.ГГГГ ЧЧ ММ Город*\nПример: 15.05.1990 14 30 Москва",
+            reply_markup=back_btn(), parse_mode='Markdown'
+        )
     elif d == 'back':
         ctx.user_data['mode'] = ''
         await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
@@ -584,7 +590,10 @@ async def msg(update, ctx):
     m = ctx.user_data.get('mode', '')
     uid = update.effective_user.id
     
-    if m == 'compat':
+       if m == 'newdata':
+        ctx.user_data['mode'] = ''
+        # Пробуем разобрать как обычные данные (код ниже сработает)
+           if m == 'compat':
         parts = t.title().split()
         if len(parts) == 2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
             prompt = f"Совместимость {parts[0]} и {parts[1]}. Процент и 2-3 предложения."
@@ -632,11 +641,12 @@ async def msg(update, ctx):
             'city': city_name
         }
         
-        kb = [
+  kb = [
             [InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
             [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
             [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
             [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
+            [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata")],
             [InlineKeyboardButton("🔙 Меню", callback_data="back")]
         ]
         await update.message.reply_text(
