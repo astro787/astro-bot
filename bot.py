@@ -300,17 +300,20 @@ def menu_btn():
 
 # ===== ПРОФЕССИОНАЛЬНАЯ ГРАФИЧЕСКАЯ КАРТА =====
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
-    """Профессиональная астрологическая карта с ASC слева"""
+    """Профессиональная астрологическая карта с ASC слева, MC внизу, IC вверху"""
     
-    fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
+    fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': 'polar'})
     
-    # === ПРОФЕССИОНАЛЬНЫЙ СТАНДАРТ: ASC всегда слева (9 часов) ===
+    # === ПРОФЕССИОНАЛЬНЫЙ СТАНДАРТ ===
+    # ASC всегда слева (9 часов = 180° в полярных)
+    # MC всегда внизу (6 часов = 270° в полярных)
+    # IC всегда вверху (12 часов = 90° в полярных)
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
     rotation_offset = np.radians(90 - asc_lon)  # поворот, чтобы ASC был на 9 часах
     
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(1)
-    ax.set_ylim(0, 1.5)
+    ax.set_ylim(0, 1.45)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.spines['polar'].set_visible(False)
@@ -329,28 +332,28 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         for sign in data['signs']:
             sign_colors[sign] = data['color']
     
-    # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05 до 1.20) =====
+    # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05 до 1.22) =====
     for i, sign in enumerate(SIGN_NAMES):
         start_angle = np.radians(i * 30) + rotation_offset
         end_angle = np.radians((i + 1) * 30) + rotation_offset
         color = sign_colors.get(sign, '#2c3e50')
         theta = np.linspace(start_angle, end_angle, 30)
-        ax.fill_between(theta, 1.05, 1.20, color=color, alpha=0.25)
-        ax.plot([start_angle, start_angle], [1.05, 1.20], color=color, linewidth=1.5, alpha=0.5)
+        ax.fill_between(theta, 1.05, 1.22, color=color, alpha=0.25)
+        ax.plot([start_angle, start_angle], [1.05, 1.22], color=color, linewidth=1.5, alpha=0.5)
         mid_angle = start_angle + np.radians(15)
         ax.annotate(f"{SIGN_EMOJI.get(sign, '')}",
-                    xy=(mid_angle, 1.16), ha='center', va='center',
-                    fontsize=10, color=color, weight='bold')
+                    xy=(mid_angle, 1.17), ha='center', va='center',
+                    fontsize=11, color=color, weight='bold')
         ax.annotate(sign,
                     xy=(mid_angle, 1.10), ha='center', va='center',
-                    fontsize=6.5, color=color, weight='bold')
+                    fontsize=7, color=color, weight='bold')
     
     ax.plot(np.linspace(0, 2*np.pi, 300), [1.05]*300, color='#cccccc', linewidth=1, alpha=0.5)
     
-    # ===== ВТОРОЙ КРУГ: ПЛАНЕТЫ (r=0.90 до 1.05) =====
+    # ===== ВТОРОЙ КРУГ: ПЛАНЕТЫ (r=0.88 до 1.05) =====
     theta_bg = np.linspace(0, 2*np.pi, 300)
-    ax.fill_between(theta_bg, 0.90, 1.05, color='#fafafa', alpha=0.5)
-    ax.plot(np.linspace(0, 2*np.pi, 300), [0.90]*300, color='#cccccc', linewidth=1, alpha=0.5)
+    ax.fill_between(theta_bg, 0.88, 1.05, color='#fafafa', alpha=0.5)
+    ax.plot(np.linspace(0, 2*np.pi, 300), [0.88]*300, color='#cccccc', linewidth=1, alpha=0.5)
     
     planet_symbols = {
         'Солнце': '☉', 'Луна': '☽', 'Меркурий': '☿', 'Венера': '♀',
@@ -360,10 +363,10 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     }
     
     planet_radii = {
-        'Плутон': 0.92, 'Нептун': 0.93, 'Уран': 0.94,
-        'Сатурн': 0.95, 'Юпитер': 0.96, 'Марс': 0.97,
-        'Венера': 0.98, 'Меркурий': 1.00, 'Луна': 1.02, 'Солнце': 1.04,
-        'Раху': 0.935, 'Кету': 0.925,
+        'Плутон': 0.90, 'Нептун': 0.91, 'Уран': 0.92,
+        'Сатурн': 0.93, 'Юпитер': 0.94, 'Марс': 0.95,
+        'Венера': 0.96, 'Меркурий': 0.98, 'Луна': 1.00, 'Солнце': 1.03,
+        'Раху': 0.915, 'Кету': 0.905,
     }
     
     planet_positions = {}
@@ -384,7 +387,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         
         # Особый цвет для кармических точек
         if name in ['Раху', 'Кету']:
-            planet_color = '#8B4513'  # коричневый
+            planet_color = '#8B4513'
             planet_size = 14
         else:
             planet_color = '#1a1a1a'
@@ -393,10 +396,10 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         ax.annotate(symbol, xy=(angle, r), ha='center', va='center',
                     fontsize=planet_size, color=planet_color, weight='bold', zorder=9)
         ax.annotate(f"{degree_in_this_sign}°",
-                    xy=(angle, r + 0.02), ha='center', va='bottom',
+                    xy=(angle, r + 0.025), ha='center', va='bottom',
                     fontsize=5.5, color=planet_color, weight='bold')
     
-    # ===== ТРЕТИЙ КРУГ: АСПЕКТЫ (r=0 до 0.90) =====
+    # ===== ТРЕТИЙ КРУГ: АСПЕКТЫ (r=0 до 0.88) =====
     earth = plt.Circle((0, 0), 0.04, color='#1a1a1a', zorder=10)
     ax.add_artist(earth)
     
@@ -430,7 +433,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         else:
             linewidth, alpha, color = 1.2, 0.7, '#1a1a1a'
         
-        ax.plot([start_angle, start_angle], [0.90, 1.20], color=color, 
+        ax.plot([start_angle, start_angle], [0.88, 1.22], color=color, 
                 linewidth=linewidth, alpha=alpha, linestyle='-')
         
         next_house = natal['houses'][(i+1) % 12]
@@ -445,28 +448,31 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         sign_deg = house['degree']
         
         ax.annotate(f"{sign_deg}° {SIGN_EMOJI.get(sign_name, '')}",
-                    xy=(start_angle, 1.24), ha='center', va='center',
+                    xy=(start_angle, 1.26), ha='center', va='center',
                     fontsize=5.5, color='#555')
         
         ax.annotate(str(house['house_num']),
-                    xy=(mid_angle, 1.30), ha='center', va='center',
+                    xy=(mid_angle, 1.33), ha='center', va='center',
                     fontsize=10, color='#1a1a1a', weight='bold',
                     bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
                              edgecolor='#cccccc', alpha=0.9))
         
+        # ASC — слева (9 часов), DSC — справа (3 часа)
+        # MC — внизу (6 часов), IC — вверху (12 часов)
         if house['house_num'] == 1:
-            ax.annotate('ASC', xy=(start_angle, 1.36), ha='center', va='center',
-                        fontsize=10, color='#e74c3c', weight='bold')
+            ax.annotate('ASC', xy=(start_angle, 1.40), ha='center', va='center',
+                        fontsize=11, color='#e74c3c', weight='bold')
         elif house['house_num'] == 4:
-            ax.annotate('IC', xy=(start_angle, 1.36), ha='center', va='center',
-                        fontsize=10, color='#e74c3c', weight='bold')
+            ax.annotate('IC', xy=(start_angle, 1.40), ha='center', va='center',
+                        fontsize=11, color='#e74c3c', weight='bold')
         elif house['house_num'] == 7:
-            ax.annotate('DSC', xy=(start_angle, 1.36), ha='center', va='center',
-                        fontsize=10, color='#e74c3c', weight='bold')
+            ax.annotate('DSC', xy=(start_angle, 1.40), ha='center', va='center',
+                        fontsize=11, color='#e74c3c', weight='bold')
         elif house['house_num'] == 10:
-            ax.annotate('MC', xy=(start_angle, 1.36), ha='center', va='center',
-                        fontsize=10, color='#e74c3c', weight='bold')
+            ax.annotate('MC', xy=(start_angle, 1.40), ha='center', va='center',
+                        fontsize=11, color='#e74c3c', weight='bold')
     
+    # Заголовок
     title = 'НАТАЛЬНАЯ КАРТА'
     if city_name:
         title += f' • {city_name.title()}'
@@ -476,38 +482,18 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig.text(0.5, 0.98, title, ha='center', va='top',
              fontsize=16, color='#1a1a1a', weight='bold', fontfamily='serif')
     
-    table_text = "ПЛАНЕТЫ В ЗНАКАХ\n" + "─" * 20 + "\n"
+    # Планеты в знаках — компактно под заголовком
     planet_names = ['Солнце', 'Луна', 'Меркурий', 'Венера', 'Марс', 
                     'Юпитер', 'Сатурн', 'Уран', 'Нептун', 'Плутон',
                     'Раху', 'Кету']
     
+    info_text = ""
     for p in planet_names:
         if p in natal:
-            table_text += f"{planet_symbols[p]} {p:<10} {natal[p]['sign']:<10} {natal[p]['degree']}°\n"
+            info_text += f"{planet_symbols[p]} {natal[p]['sign']} {natal[p]['degree']}°  "
     
-    asc_lon_val = natal.get('Асцендент', {}).get('lon', 0)
-    mc_lon_val = natal.get('MC', {}).get('lon', 0)
-    
-    table_text += "\n" + "─" * 20 + "\n"
-    table_text += f"ASC: {natal['Асцендент']['sign']} {natal['Асцендент']['degree']}°\n"
-    table_text += f"DSC: {sign_from_lon((asc_lon_val + 180) % 360)} {degree_in_sign((asc_lon_val + 180) % 360)}°\n"
-    table_text += f"MC: {natal['MC']['sign']} {natal['MC']['degree']}°\n"
-    table_text += f"IC: {sign_from_lon((mc_lon_val + 180) % 360)} {degree_in_sign((mc_lon_val + 180) % 360)}°"
-    
-    fig.text(0.78, 0.55, table_text, ha='left', va='center',
-             fontsize=8, color='#1a1a1a', fontfamily='monospace',
-             bbox=dict(boxstyle='round,pad=0.8', facecolor='white', 
-                      edgecolor='#cccccc', alpha=0.9))
-    
-    aspects = get_aspects(natal)
-    if aspects:
-        aspect_text = "АСПЕКТЫ\n" + "─" * 15 + "\n"
-        for a in aspects[:8]:
-            aspect_text += f"• {a}\n"
-        fig.text(0.78, 0.25, aspect_text, ha='left', va='center',
-                 fontsize=7, color='#1a1a1a', fontfamily='monospace',
-                 bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
-                          edgecolor='#cccccc', alpha=0.9))
+    fig.text(0.5, 0.02, info_text, ha='center', va='bottom',
+             fontsize=7, color='#555555', fontfamily='monospace')
     
     plt.tight_layout(pad=1)
     buf = BytesIO()
