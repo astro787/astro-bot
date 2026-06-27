@@ -363,8 +363,8 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     
     # ===== ВАЖНО: СМЕЩЕНИЕ ДЛЯ ASC НА 9 ЧАСОВ (270°) =====
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    # Вычисляем смещение: нам нужно, чтобы ASC был на 270° (9 часов)
-    offset = np.radians(270) - np.radians(asc_lon)
+    # Вычисляем смещение: нам нужно, чтобы ASC был на 90° (9 часов)
+    offset = np.radians(90) - np.radians(asc_lon)
     
     # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05-1.20) =====
     for i, sign in enumerate(SIGN_NAMES):
