@@ -297,7 +297,9 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
     
     ax.set_theta_zero_location('N')
-    ax.set_theta_direction(-1)
+       ax.set_theta_direction(1)                                    # против часовой (оставить)
+    ...
+    offset = np.radians(180) - np.radians(asc_lon)              # ASC на 180° = 9 часов
     ax.set_ylim(0, 1.5)
     ax.set_xticks([])
     ax.set_yticks([])
