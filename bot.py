@@ -305,18 +305,16 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': 'polar'})
     
     # === ПРОФЕССИОНАЛЬНЫЙ СТАНДАРТ ===
-    # ASC (1 дом) — 9 часов (π радиан = 180°) — СЛЕВА
-    # DSC (7 дом) — 3 часа (0 радиан = 0°) — СПРАВА
-    # IC (4 дом) — 6 часов (3π/2 радиан = 270°) — ВНИЗУ
-    # MC (10 дом) — 12 часов (π/2 радиан = 90°) — ВВЕРХУ
+    # В полярных координатах matplotlib (theta_zero='N', direction=1):
+    # 0° = 12 часов (вверху)
+    # 90° = 3 часа (справа)
+    # 180° = 6 часов (внизу)
+    # 270° = 9 часов (слева)
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    rotation_offset = np.radians(90 - asc_lon)
+    mc_lon = natal.get('MC', {}).get('lon', 0)
     
-    # Фиксированные позиции для угловых точек
-    asc_angle = np.pi          # 180° — 9 часов (слева) = 1 дом ASC
-    dsc_angle = 0              # 0° — 3 часа (справа) = 7 дом DSC
-    ic_angle = 3 * np.pi / 2   # 270° — 6 часов (внизу) = 4 дом IC
-    mc_angle = np.pi / 2       # 90° — 12 часов (вверху) = 10 дом MC
+    # Поворот: ASC на 270° (9 часов, слева)
+    rotation_offset = np.radians(270 - asc_lon)
     
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(1)
@@ -326,6 +324,12 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     ax.spines['polar'].set_visible(False)
     ax.set_facecolor('white')
     fig.patch.set_facecolor('white')
+    
+    # Фиксированные позиции в полярных координатах matplotlib
+    asc_angle = np.radians(270)  # 9 часов (слева) = ASC (1 дом)
+    dsc_angle = np.radians(90)   # 3 часа (справа) = DSC (7 дом)
+    ic_angle = np.radians(180)   # 6 часов (внизу) = IC (4 дом)
+    mc_angle = np.radians(0)     # 12 часов (вверху) = MC (10 дом)
     
     elements = {
         'Огонь': {'color': '#e74c3c', 'signs': ['Овен', 'Лев', 'Стрелец']},
@@ -437,37 +441,32 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     ic_lon_val = (mc_lon_val + 180) % 360
     
     for i, house in enumerate(natal.get('houses', [])):
-        start_angle = np.radians(house['lon']) + rotation_offset
         house_lon = house['lon']
         
-        # Определяем тип куспида
-        is_asc = (abs(house_lon - asc_lon_val) < 1.0 or 
-                  abs(house_lon - asc_lon_val - 360) < 1.0 or
-                  abs(house_lon - asc_lon_val + 360) < 1.0)
+        # Упрощенное сравнение с учетом перехода через 0°
+        diff_asc = min(abs(house_lon - asc_lon_val), 360 - abs(house_lon - asc_lon_val))
+        diff_mc = min(abs(house_lon - mc_lon_val), 360 - abs(house_lon - mc_lon_val))
+        diff_dsc = min(abs(house_lon - dsc_lon_val), 360 - abs(house_lon - dsc_lon_val))
+        diff_ic = min(abs(house_lon - ic_lon_val), 360 - abs(house_lon - ic_lon_val))
         
-        is_mc = (abs(house_lon - mc_lon_val) < 1.0 or 
-                 abs(house_lon - mc_lon_val - 360) < 1.0 or
-                 abs(house_lon - mc_lon_val + 360) < 1.0)
-        
-        is_dsc = (abs(house_lon - dsc_lon_val) < 1.0 or 
-                  abs(house_lon - dsc_lon_val - 360) < 1.0 or
-                  abs(house_lon - dsc_lon_val + 360) < 1.0)
-        
-        is_ic = (abs(house_lon - ic_lon_val) < 1.0 or 
-                 abs(house_lon - ic_lon_val - 360) < 1.0 or
-                 abs(house_lon - ic_lon_val + 360) < 1.0)
+        is_asc = diff_asc < 2.0
+        is_mc = diff_mc < 2.0
+        is_dsc = diff_dsc < 2.0
+        is_ic = diff_ic < 2.0
         
         is_angular = is_asc or is_mc or is_dsc or is_ic
         
-        # Принудительно корректируем углы для угловых точек
+        # Принудительно корректируем углы
         if is_asc:
-            start_angle = asc_angle  # 1 дом — слева (9 часов)
+            start_angle = asc_angle
         elif is_dsc:
-            start_angle = dsc_angle  # 7 дом — справа (3 часа)
+            start_angle = dsc_angle
         elif is_ic:
-            start_angle = ic_angle   # 4 дом — внизу (6 часов)
+            start_angle = ic_angle
         elif is_mc:
-            start_angle = mc_angle   # 10 дом — вверху (12 часов)
+            start_angle = mc_angle
+        else:
+            start_angle = np.radians(house_lon) + rotation_offset
         
         if is_angular:
             linewidth, alpha, color = 2.5, 0.9, '#e74c3c'
@@ -478,22 +477,17 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
                 linewidth=linewidth, alpha=alpha, linestyle='-')
         
         next_house = natal['houses'][(i+1) % 12]
-        next_start_angle = np.radians(next_house['lon']) + rotation_offset
-        
-        # Корректируем следующий угол если он угловой
         next_house_lon = next_house['lon']
-        next_is_asc = (abs(next_house_lon - asc_lon_val) < 1.0 or 
-                       abs(next_house_lon - asc_lon_val - 360) < 1.0 or
-                       abs(next_house_lon - asc_lon_val + 360) < 1.0)
-        next_is_dsc = (abs(next_house_lon - dsc_lon_val) < 1.0 or 
-                       abs(next_house_lon - dsc_lon_val - 360) < 1.0 or
-                       abs(next_house_lon - dsc_lon_val + 360) < 1.0)
-        next_is_ic = (abs(next_house_lon - ic_lon_val) < 1.0 or 
-                      abs(next_house_lon - ic_lon_val - 360) < 1.0 or
-                      abs(next_house_lon - ic_lon_val + 360) < 1.0)
-        next_is_mc = (abs(next_house_lon - mc_lon_val) < 1.0 or 
-                      abs(next_house_lon - mc_lon_val - 360) < 1.0 or
-                      abs(next_house_lon - mc_lon_val + 360) < 1.0)
+        
+        diff_next_asc = min(abs(next_house_lon - asc_lon_val), 360 - abs(next_house_lon - asc_lon_val))
+        diff_next_mc = min(abs(next_house_lon - mc_lon_val), 360 - abs(next_house_lon - mc_lon_val))
+        diff_next_dsc = min(abs(next_house_lon - dsc_lon_val), 360 - abs(next_house_lon - dsc_lon_val))
+        diff_next_ic = min(abs(next_house_lon - ic_lon_val), 360 - abs(next_house_lon - ic_lon_val))
+        
+        next_is_asc = diff_next_asc < 2.0
+        next_is_mc = diff_next_mc < 2.0
+        next_is_dsc = diff_next_dsc < 2.0
+        next_is_ic = diff_next_ic < 2.0
         
         if next_is_asc:
             next_start_angle = asc_angle
@@ -503,6 +497,8 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
             next_start_angle = ic_angle
         elif next_is_mc:
             next_start_angle = mc_angle
+        else:
+            next_start_angle = np.radians(next_house_lon) + rotation_offset
         
         if next_start_angle < start_angle:
             next_start_angle += 2 * np.pi
@@ -513,12 +509,10 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         sign_name = house['sign']
         sign_deg = house['degree']
         
-        # Градусы куспидов
         ax.annotate(f"{sign_deg}° {SIGN_EMOJI.get(sign_name, '')}",
                     xy=(start_angle, 1.28), ha='center', va='center',
                     fontsize=5.5, color='#555')
         
-        # Номера домов
         ax.annotate(str(house['house_num']),
                     xy=(mid_angle, 1.35), ha='center', va='center',
                     fontsize=10, color='#1a1a1a', weight='bold',
