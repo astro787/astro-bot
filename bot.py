@@ -305,15 +305,16 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': 'polar'})
     
     # === ПРОФЕССИОНАЛЬНЫЙ СТАНДАРТ ===
-    # ASC всегда слева (9 часов = 180° в полярных)
-    # MC всегда внизу (6 часов = 270° в полярных)
-    # IC всегда вверху (12 часов = 90° в полярных)
+    # ASC (1 дом) всегда слева (9 часов = π радиан)
+    # MC (10 дом) всегда внизу (6 часов = 3π/2 = 270°)
+    # DSC (7 дом) всегда справа (3 часа = 0°)
+    # IC (4 дом) всегда вверху (12 часов = π/2 = 90°)
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    rotation_offset = np.radians(90 - asc_lon)  # поворот, чтобы ASC был на 9 часах
+    rotation_offset = np.radians(90 - asc_lon)
     
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(1)
-    ax.set_ylim(0, 1.45)
+    ax.set_ylim(0, 1.50)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.spines['polar'].set_visible(False)
@@ -385,7 +386,6 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         r = planet_radii.get(name, 0.97)
         planet_positions[name] = (angle, r)
         
-        # Особый цвет для кармических точек
         if name in ['Раху', 'Кету']:
             planet_color = '#8B4513'
             planet_size = 14
@@ -425,10 +425,45 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
                     alpha=alpha, linestyle=linestyle, zorder=1)
     
     # ===== КУСПИДЫ ДОМОВ =====
+    # Фиксированные позиции угловых точек в полярных координатах:
+    # π (180°) = слева = ASC
+    # 0 (0°) = справа = DSC
+    # 3π/2 (270°) = внизу = MC
+    # π/2 (90°) = вверху = IC
+    
+    asc_lon_val = natal.get('Асцендент', {}).get('lon', 0)
+    mc_lon_val = natal.get('MC', {}).get('lon', 0)
+    
     for i, house in enumerate(natal.get('houses', [])):
         start_angle = np.radians(house['lon']) + rotation_offset
         
-        if house['house_num'] in [1, 4, 7, 10]:
+        house_lon = house['lon']
+        
+        # Проверяем, является ли куспид ASC (долгота совпадает с Асцендентом)
+        is_asc = (abs(house_lon - asc_lon_val) < 0.5 or 
+                  abs(house_lon - asc_lon_val - 360) < 0.5 or
+                  abs(house_lon - asc_lon_val + 360) < 0.5)
+        
+        # Проверяем, является ли куспид MC (долгота совпадает с MC)
+        is_mc = (abs(house_lon - mc_lon_val) < 0.5 or 
+                 abs(house_lon - mc_lon_val - 360) < 0.5 or
+                 abs(house_lon - mc_lon_val + 360) < 0.5)
+        
+        # DSC = ASC + 180°
+        dsc_lon = (asc_lon_val + 180) % 360
+        is_dsc = (abs(house_lon - dsc_lon) < 0.5 or 
+                  abs(house_lon - dsc_lon - 360) < 0.5 or
+                  abs(house_lon - dsc_lon + 360) < 0.5)
+        
+        # IC = MC + 180°
+        ic_lon = (mc_lon_val + 180) % 360
+        is_ic = (abs(house_lon - ic_lon) < 0.5 or 
+                 abs(house_lon - ic_lon - 360) < 0.5 or
+                 abs(house_lon - ic_lon + 360) < 0.5)
+        
+        is_angular = is_asc or is_mc or is_dsc or is_ic
+        
+        if is_angular:
             linewidth, alpha, color = 2.5, 0.9, '#e74c3c'
         else:
             linewidth, alpha, color = 1.2, 0.7, '#1a1a1a'
@@ -457,19 +492,18 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
                     bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
                              edgecolor='#cccccc', alpha=0.9))
         
-        # ASC — слева (9 часов), DSC — справа (3 часа)
-        # MC — внизу (6 часов), IC — вверху (12 часов)
-        if house['house_num'] == 1:
-            ax.annotate('ASC', xy=(start_angle, 1.40), ha='center', va='center',
+        # Подписи угловых точек — строго по их реальному положению на карте
+        if is_asc:
+            ax.annotate('ASC', xy=(start_angle, 1.42), ha='center', va='center',
                         fontsize=11, color='#e74c3c', weight='bold')
-        elif house['house_num'] == 4:
-            ax.annotate('IC', xy=(start_angle, 1.40), ha='center', va='center',
+        elif is_ic:
+            ax.annotate('IC', xy=(start_angle, 1.42), ha='center', va='center',
                         fontsize=11, color='#e74c3c', weight='bold')
-        elif house['house_num'] == 7:
-            ax.annotate('DSC', xy=(start_angle, 1.40), ha='center', va='center',
+        elif is_dsc:
+            ax.annotate('DSC', xy=(start_angle, 1.42), ha='center', va='center',
                         fontsize=11, color='#e74c3c', weight='bold')
-        elif house['house_num'] == 10:
-            ax.annotate('MC', xy=(start_angle, 1.40), ha='center', va='center',
+        elif is_mc:
+            ax.annotate('MC', xy=(start_angle, 1.42), ha='center', va='center',
                         fontsize=11, color='#e74c3c', weight='bold')
     
     # Заголовок
@@ -658,4 +692,4 @@ def main():
 
 if __name__ == '__main__':
     threading.Thread(target=run_keepalive, daemon=True).start()
-    main()
+    main() 
