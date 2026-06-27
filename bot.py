@@ -319,7 +319,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     
     # ===== СМЕЩЕНИЕ: ASC ВСЕГДА НА 270° (СЛЕВА) =====
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    offset = np.radians(270) - np.radians(asc_lon)
+       offset = np.radians(180) - np.radians(asc_lon)
     
     # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05-1.20) =====
     for i, sign in enumerate(SIGN_NAMES):
