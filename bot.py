@@ -214,6 +214,30 @@ def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62,
             lon_deg = result[0] if isinstance(result, tuple) else result[0]
             natal[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
         except: continue
+    
+    # === ЛУННЫЕ УЗЛЫ (РАХУ И КЕТУ) ===
+    try:
+        # Раху (Северный узел) - среднее положение
+        rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
+        natal['Раху'] = {
+            'sign': sign_from_lon(rahu_lon), 
+            'degree': degree_in_sign(rahu_lon), 
+            'lon': rahu_lon,
+            'retro': True  # Раху всегда ретрограден
+        }
+        
+        # Кету (Южный узел) - всегда в оппозиции к Раху
+        ketu_lon = (rahu_lon + 180) % 360
+        natal['Кету'] = {
+            'sign': sign_from_lon(ketu_lon), 
+            'degree': degree_in_sign(ketu_lon), 
+            'lon': ketu_lon,
+            'retro': True  # Кету всегда ретрограден
+        }
+    except Exception as e:
+        print(f"Ошибка расчёта Лунных узлов: {e}")
+    # === КОНЕЦ БЛОКА УЗЛОВ ===
+    
     if abs(lat) > 66.5: house_system = b'W'
     try:
         houses, ascmc = swe.houses(jd, lat, lon, house_system)
@@ -235,6 +259,25 @@ def calc_transits():
             lon_deg = swe.calc_ut(jd, pid)[0][0]
             transits[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
         except: continue
+    
+    # === ТРАНЗИТЫ ЛУННЫХ УЗЛОВ ===
+    try:
+        rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
+        transits['Раху'] = {
+            'sign': sign_from_lon(rahu_lon), 
+            'degree': degree_in_sign(rahu_lon), 
+            'lon': rahu_lon
+        }
+        ketu_lon = (rahu_lon + 180) % 360
+        transits['Кету'] = {
+            'sign': sign_from_lon(ketu_lon), 
+            'degree': degree_in_sign(ketu_lon), 
+            'lon': ketu_lon
+        }
+    except Exception as e:
+        print(f"Ошибка расчёта транзитов узлов: {e}")
+    # === КОНЕЦ БЛОКА ТРАНЗИТОВ УЗЛОВ ===
+    
     return transits
 
 def get_aspects(planets):
@@ -256,6 +299,7 @@ def get_aspects(planets):
 
 def get_aspects_with_angles(natal):
     aspects = []
+    # Включаем узлы в список планет для аспектов
     names = [p for p in natal.keys() if p not in ['houses', 'Асцендент', 'MC', 'Десцендент', 'IC']]
     for i in range(len(names)):
         for j in range(i+1, len(names)):
@@ -317,9 +361,9 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         for sign in data['signs']:
             sign_colors[sign] = data['color']
     
-    # ===== СМЕЩЕНИЕ: ASC ВСЕГДА НА 90° (СЛЕВА, 9 ЧАСОВ) =====
+    # ===== СМЕЩЕНИЕ: ASC ВСЕГДА НА 270° (СЛЕВА, 9 ЧАСОВ) =====
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    offset = np.radians(90) - np.radians(asc_lon)
+    offset = np.radians(270) - np.radians(asc_lon)
     
     # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05-1.20) =====
     for i, sign in enumerate(SIGN_NAMES):
@@ -347,16 +391,19 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     ax.fill_between(theta_bg, 0.90, 1.05, color='#fafafa', alpha=0.5)
     ax.plot(np.linspace(0, 2*np.pi, 300), [0.90]*300, color='#cccccc', linewidth=1, alpha=0.5)
     
+    # Обновленные символы планет с узлами
     planet_symbols = {
         'Солнце': '☉', 'Луна': '☽', 'Меркурий': '☿', 'Венера': '♀',
         'Марс': '♂', 'Юпитер': '♃', 'Сатурн': '♄', 'Уран': '♅',
         'Нептун': '♆', 'Плутон': '♇',
+        'Раху': '☊', 'Кету': '☋',  # Лунные узлы
     }
     
     planet_radii = {
         'Плутон': 0.92, 'Нептун': 0.93, 'Уран': 0.94,
         'Сатурн': 0.95, 'Юпитер': 0.96, 'Марс': 0.97,
-        'Венера': 0.98, 'Меркурий': 1.00, 'Луна': 1.02, 'Солнце': 1.04
+        'Венера': 0.98, 'Меркурий': 1.00, 'Луна': 1.02, 'Солнце': 1.04,
+        'Раху': 0.99, 'Кету': 0.91,  # Позиции для узлов
     }
     
     planet_positions = {}
@@ -375,11 +422,19 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         r = planet_radii.get(name, 0.97)
         planet_positions[name] = (angle, r)
         
+        # Для узлов используем особые цвета
+        if name == 'Раху':
+            color = '#8e44ad'  # Фиолетовый для Раху
+        elif name == 'Кету':
+            color = '#e67e22'  # Оранжевый для Кету
+        else:
+            color = '#1a1a1a'
+        
         ax.annotate(symbol, xy=(angle, r), ha='center', va='center',
-                    fontsize=13, color='#1a1a1a', weight='bold', zorder=9)
+                    fontsize=13, color=color, weight='bold', zorder=9)
         ax.annotate(f"{degree_in_this_sign}°",
                     xy=(angle, r + 0.02), ha='center', va='bottom',
-                    fontsize=5.5, color='#1a1a1a', weight='bold')
+                    fontsize=5.5, color=color, weight='bold')
     
     # ===== ТРЕТИЙ КРУГ: АСПЕКТЫ (r=0-0.90) =====
     earth = plt.Circle((0, 0), 0.04, color='#1a1a1a', zorder=10)
@@ -492,8 +547,11 @@ async def btn(update, ctx):
         transits = calc_transits(); aspects = get_aspects(natal)
         astro = f"Карта: ☀ {natal['Солнце']['sign']} {natal['Солнце']['degree']}°, 🌙 {natal['Луна']['sign']} {natal['Луна']['degree']}°, ASC {natal['Асцендент']['sign']}, MC {natal['MC']['sign']}\n"
         astro += f"Транзиты: ☀ {transits['Солнце']['sign']}, 🌙 {transits['Луна']['sign']}, ♂ {transits['Марс']['sign']}\n"
+        # Добавляем информацию об узлах
+        if 'Раху' in natal and 'Раху' in transits:
+            astro += f"Узлы: ☊ Раху в {natal['Раху']['sign']}, транзит в {transits['Раху']['sign']}\n"
         if aspects: astro += f"Аспекты: {', '.join(aspects[:3])}"
-        prompt = f"Ты астролог. Прогноз на {period}:\n{astro}\n\n6-8 предложений по сферам: любовь, карьера, здоровье, совет. С эмодзи."
+        prompt = f"Ты астролог. Прогноз на {period}:\n{astro}\n\n6-8 предложений по сферам: любовь, карьера, здоровье, совет. Учти влияние Лунных узлов Раху и Кету. С эмодзи."
         forecast = ask_ai(prompt) or f"✨ Прогноз на {period}\n\n❤️ Любовь\n💼 Карьера\n🏃 Здоровье"
         await update.effective_message.reply_text(f"🌟 *Прогноз на {period}* 🌟\n\n{forecast}", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'natal':
@@ -505,11 +563,14 @@ async def btn(update, ctx):
         aspects = get_aspects(natal)
         
         text = f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d} (местное)\n\n"
-        for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Уран','Нептун','Плутон']:
-            if p in natal: text += f"{SIGN_EMOJI.get(natal[p]['sign'],'')} {p}: *{natal[p]['sign']}* {natal[p]['degree']}°\n"
+        # Расширенный список планет с узлами
+        for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Уран','Нептун','Плутон','Раху','Кету']:
+            if p in natal: 
+                retro = " ℞" if natal[p].get('retro') else ""
+                text += f"{SIGN_EMOJI.get(natal[p]['sign'],'')} {p}: *{natal[p]['sign']}* {natal[p]['degree']}°{retro}\n"
         if aspects:
             text += f"\n🔹 *Аспекты:*\n"
-            for a in aspects[:6]: text += f"• {a}\n"
+            for a in aspects[:8]: text += f"• {a}\n"
         
         birth_time_str = f"{u['hour']:02d}:{u['minute']:02d}"
         img = draw_natal_chart_pro(natal, u['city'], birth_time_str)
@@ -532,7 +593,8 @@ async def btn(update, ctx):
     elif d == 'transits':
         transits = calc_transits()
         text = f"🪐 *Транзиты*\n📅 {datetime.now().strftime('%d.%m.%Y %H:%M')} UTC\n\n"
-        for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн']:
+        # Добавляем узлы в отображение транзитов
+        for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Раху','Кету']:
             if p in transits: text += f"{SIGN_EMOJI.get(transits[p]['sign'],'')} {p}: *{transits[p]['sign']}* {transits[p]['degree']}°\n"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'compat':
@@ -543,6 +605,10 @@ async def btn(update, ctx):
         phases = {0:"🌑 Новолуние",1:"🌒",2:"🌓",3:"🌔",4:"🌕 Полнолуние",5:"🌖",6:"🌗",7:"🌘"}
         text = f"🌙 *Луна*\n\nФаза: {phases.get(phase, '🌑')}\n"
         if 'Луна' in transits: text += f"Знак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
+        # Добавляем информацию об узлах для лунной страницы
+        if 'Раху' in transits:
+            text += f"\n☊ Раху: *{transits['Раху']['sign']}* {transits['Раху']['degree']}°"
+            text += f"\n☋ Кету: *{transits['Кету']['sign']}* {transits['Кету']['degree']}°"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'daily':
         text = "📅 *Сегодня*\n\n"; transits = calc_transits()
@@ -550,6 +616,8 @@ async def btn(update, ctx):
             text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
             if 'Солнце' in transits and sign == transits['Солнце']['sign']: text += "☀️ Солнце в знаке!\n"
             elif 'Луна' in transits and sign == transits['Луна']['sign']: text += "🌙 Луна в знаке\n"
+            elif 'Раху' in transits and sign == transits['Раху']['sign']: text += "☊ Раху в знаке\n"
+            elif 'Кету' in transits and sign == transits['Кету']['sign']: text += "☋ Кету в знаке\n"
             else: text += "✨ Хороший день\n"
         await q.edit_message_text(text[:4000], reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'newdata':
