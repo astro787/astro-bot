@@ -292,7 +292,7 @@ def menu_btn():
 
 # ===== ПРОФЕССИОНАЛЬНАЯ ГРАФИЧЕСКАЯ КАРТА (ASC НА 9 ЧАСОВ, БЕЗ ТАБЛИЦ) =====
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
-    """Профессиональная астрологическая карта с ASC всегда слева"""
+    """Профессиональная астрологическая карта с ASC всегда слева (9 часов)"""
     
     fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
     
@@ -317,9 +317,9 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         for sign in data['signs']:
             sign_colors[sign] = data['color']
     
-    # ===== СМЕЩЕНИЕ: ASC ВСЕГДА НА 270° (СЛЕВА) =====
+    # ===== СМЕЩЕНИЕ: ASC ВСЕГДА НА 180° (СЛЕВА, 9 ЧАСОВ) =====
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-       offset = np.radians(180) - np.radians(asc_lon)
+    offset = np.radians(180) - np.radians(asc_lon)
     
     # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05-1.20) =====
     for i, sign in enumerate(SIGN_NAMES):
