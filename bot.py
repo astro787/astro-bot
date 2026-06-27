@@ -361,8 +361,9 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         for sign in data['signs']:
             sign_colors[sign] = data['color']
     
-    # ===== СМЕЩЕНИЕ: ASC ВСЕГДА НА 270° (СЛЕВА, 9 ЧАСОВ) =====
+    # ===== ВАЖНО: СМЕЩЕНИЕ ДЛЯ ASC НА 9 ЧАСОВ (270°) =====
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
+    # Вычисляем смещение: нам нужно, чтобы ASC был на 270° (9 часов)
     offset = np.radians(270) - np.radians(asc_lon)
     
     # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05-1.20) =====
@@ -391,19 +392,18 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     ax.fill_between(theta_bg, 0.90, 1.05, color='#fafafa', alpha=0.5)
     ax.plot(np.linspace(0, 2*np.pi, 300), [0.90]*300, color='#cccccc', linewidth=1, alpha=0.5)
     
-    # Обновленные символы планет с узлами
     planet_symbols = {
         'Солнце': '☉', 'Луна': '☽', 'Меркурий': '☿', 'Венера': '♀',
         'Марс': '♂', 'Юпитер': '♃', 'Сатурн': '♄', 'Уран': '♅',
         'Нептун': '♆', 'Плутон': '♇',
-        'Раху': '☊', 'Кету': '☋',  # Лунные узлы
+        'Раху': '☊', 'Кету': '☋',
     }
     
     planet_radii = {
         'Плутон': 0.92, 'Нептун': 0.93, 'Уран': 0.94,
         'Сатурн': 0.95, 'Юпитер': 0.96, 'Марс': 0.97,
         'Венера': 0.98, 'Меркурий': 1.00, 'Луна': 1.02, 'Солнце': 1.04,
-        'Раху': 0.99, 'Кету': 0.91,  # Позиции для узлов
+        'Раху': 0.99, 'Кету': 0.91,
     }
     
     planet_positions = {}
@@ -422,11 +422,10 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         r = planet_radii.get(name, 0.97)
         planet_positions[name] = (angle, r)
         
-        # Для узлов используем особые цвета
         if name == 'Раху':
-            color = '#8e44ad'  # Фиолетовый для Раху
+            color = '#8e44ad'
         elif name == 'Кету':
-            color = '#e67e22'  # Оранжевый для Кету
+            color = '#e67e22'
         else:
             color = '#1a1a1a'
         
@@ -461,45 +460,58 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
             ax.plot([ang1, ang2], [r1, r2], color=color, linewidth=lw, 
                     alpha=alpha, linestyle=linestyle, zorder=1)
     
-    # ===== КУСПИДЫ ДОМОВ =====
+    # ===== ИСПРАВЛЕНО: КУСПИДЫ ДОМОВ С УЧЁТОМ СМЕЩЕНИЯ =====
     for i, house in enumerate(natal.get('houses', [])):
-        start_angle = np.radians(house['lon']) + offset
+        # Применяем то же смещение offset к каждому куспиду
+        house_lon = house['lon']
+        house_angle = np.radians(house_lon) + offset
         
         if house['house_num'] in [1, 4, 7, 10]:
             linewidth, alpha, color = 2.5, 0.9, '#e74c3c'
         else:
             linewidth, alpha, color = 1.2, 0.7, '#1a1a1a'
         
-        ax.plot([start_angle, start_angle], [0.90, 1.20], color=color, 
+        ax.plot([house_angle, house_angle], [0.90, 1.20], color=color, 
                 linewidth=linewidth, alpha=alpha, linestyle='-')
         
+        # Вычисляем середину дома
         next_house = natal['houses'][(i+1) % 12]
-        mid_angle = start_angle + np.radians((next_house['lon'] - house['lon']) % 360 / 2)
+        next_house_angle = np.radians(next_house['lon']) + offset
+        
+        # Угол между куспидами (учитываем переход через 0°)
+        angle_diff = (next_house_angle - house_angle) % (2 * np.pi)
+        mid_angle = house_angle + angle_diff / 2
+        
+        # Нормализуем угол
+        mid_angle = mid_angle % (2 * np.pi)
         
         sign_name = house['sign']
         sign_deg = house['degree']
         
+        # Подписываем градус и знак на куспиде
         ax.annotate(f"{sign_deg}° {SIGN_EMOJI.get(sign_name, '')}",
-                    xy=(start_angle, 1.24), ha='center', va='center',
+                    xy=(house_angle, 1.24), ha='center', va='center',
                     fontsize=5.5, color='#555')
         
+        # Номер дома в середине
         ax.annotate(str(house['house_num']),
                     xy=(mid_angle, 1.30), ha='center', va='center',
                     fontsize=10, color='#1a1a1a', weight='bold',
                     bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
                              edgecolor='#cccccc', alpha=0.9))
         
+        # Подписи угловых домов на куспидах
         if house['house_num'] == 1:
-            ax.annotate('ASC', xy=(start_angle, 1.36), ha='center', va='center',
+            ax.annotate('ASC', xy=(house_angle, 1.36), ha='center', va='center',
                         fontsize=10, color='#e74c3c', weight='bold')
         elif house['house_num'] == 4:
-            ax.annotate('IC', xy=(start_angle, 1.36), ha='center', va='center',
+            ax.annotate('IC', xy=(house_angle, 1.36), ha='center', va='center',
                         fontsize=10, color='#e74c3c', weight='bold')
         elif house['house_num'] == 7:
-            ax.annotate('DSC', xy=(start_angle, 1.36), ha='center', va='center',
+            ax.annotate('DSC', xy=(house_angle, 1.36), ha='center', va='center',
                         fontsize=10, color='#e74c3c', weight='bold')
         elif house['house_num'] == 10:
-            ax.annotate('MC', xy=(start_angle, 1.36), ha='center', va='center',
+            ax.annotate('MC', xy=(house_angle, 1.36), ha='center', va='center',
                         fontsize=10, color='#e74c3c', weight='bold')
     
     title = 'НАТАЛЬНАЯ КАРТА'
