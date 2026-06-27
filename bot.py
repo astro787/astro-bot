@@ -305,19 +305,8 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': 'polar'})
     
     # === ПРОФЕССИОНАЛЬНЫЙ СТАНДАРТ ===
-    # В полярных координатах matplotlib (theta_zero='N', direction=1):
-    # 0° = верх (12 часов) → MC
-    # 90° = право (3 часа) → DSC
-    # 180° = низ (6 часов) → IC
-    # 270° = лево (9 часов) → ASC
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    rotation_offset = np.radians(270 - asc_lon)  # ASC на 270°
-    
-    # Фиксированные позиции
-    ASC_ANGLE = np.radians(270)  # 9 часов (слева)
-    DSC_ANGLE = np.radians(90)   # 3 часа (справа)
-    IC_ANGLE = np.radians(180)   # 6 часов (внизу)
-    MC_ANGLE = np.radians(0)     # 12 часов (вверху)
+    rotation_offset = np.radians(90 - asc_lon)  # проверенная формула
     
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(1)
@@ -327,6 +316,12 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     ax.spines['polar'].set_visible(False)
     ax.set_facecolor('white')
     fig.patch.set_facecolor('white')
+    
+    # Фиксированные позиции угловых точек
+    ASC_ANGLE = np.radians(180)  # 9 часов (слева)
+    DSC_ANGLE = 0                # 3 часа (справа)
+    IC_ANGLE = np.radians(270)   # 6 часов (внизу)
+    MC_ANGLE = np.radians(90)    # 12 часов (вверху)
     
     elements = {
         'Огонь': {'color': '#e74c3c', 'signs': ['Овен', 'Лев', 'Стрелец']},
@@ -705,4 +700,4 @@ def main():
 
 if __name__ == '__main__':
     threading.Thread(target=run_keepalive, daemon=True).start()
-    main()        
+    main()
