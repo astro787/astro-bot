@@ -297,9 +297,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
     
     ax.set_theta_zero_location('N')
-       ax.set_theta_direction(1)                                    # против часовой (оставить)
-    ...
-    offset = np.radians(180) - np.radians(asc_lon)              # ASC на 180° = 9 часов
+    ax.set_theta_direction(1)
     ax.set_ylim(0, 1.5)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -321,7 +319,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     
     # ===== СМЕЩЕНИЕ: ASC ВСЕГДА НА 180° (СЛЕВА, 9 ЧАСОВ) =====
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    offset = np.radians(180) + np.radians(asc_lon)
+    offset = np.radians(180) - np.radians(asc_lon)
     
     # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05-1.20) =====
     for i, sign in enumerate(SIGN_NAMES):
