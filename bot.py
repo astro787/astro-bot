@@ -300,25 +300,23 @@ def menu_btn():
 
 # ===== ПРОФЕССИОНАЛЬНАЯ ГРАФИЧЕСКАЯ КАРТА =====
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
-    """Профессиональная астрологическая карта с ASC слева, MC внизу, IC вверху"""
+    """Профессиональная астрологическая карта: ASC слева, DSC справа, IC внизу, MC вверху"""
     
     fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': 'polar'})
     
     # === ПРОФЕССИОНАЛЬНЫЙ СТАНДАРТ ===
-    # Жесткая фиксация позиций:
-    # ASC — 9 часов (π радиан = 180°)
-    # DSC — 3 часа (0 радиан = 0°)  
-    # IC — 12 часов (π/2 радиан = 90°)
-    # MC — 6 часов (3π/2 радиан = 270°)
+    # ASC (1 дом) — 9 часов (π радиан = 180°) — СЛЕВА
+    # DSC (7 дом) — 3 часа (0 радиан = 0°) — СПРАВА
+    # IC (4 дом) — 6 часов (3π/2 радиан = 270°) — ВНИЗУ
+    # MC (10 дом) — 12 часов (π/2 радиан = 90°) — ВВЕРХУ
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    mc_lon = natal.get('MC', {}).get('lon', 0)
     rotation_offset = np.radians(90 - asc_lon)
     
-    # Вычисляем фиксированные позиции для подписей
-    asc_angle = np.pi  # 180° — слева
-    dsc_angle = 0      # 0° — справа
-    ic_angle = np.pi / 2  # 90° — вверх
-    mc_angle = 3 * np.pi / 2  # 270° — вниз
+    # Фиксированные позиции для угловых точек
+    asc_angle = np.pi          # 180° — 9 часов (слева) = 1 дом ASC
+    dsc_angle = 0              # 0° — 3 часа (справа) = 7 дом DSC
+    ic_angle = 3 * np.pi / 2   # 270° — 6 часов (внизу) = 4 дом IC
+    mc_angle = np.pi / 2       # 90° — 12 часов (вверху) = 10 дом MC
     
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(1)
@@ -463,13 +461,13 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         
         # Принудительно корректируем углы для угловых точек
         if is_asc:
-            start_angle = asc_angle
+            start_angle = asc_angle  # 1 дом — слева (9 часов)
         elif is_dsc:
-            start_angle = dsc_angle
+            start_angle = dsc_angle  # 7 дом — справа (3 часа)
         elif is_ic:
-            start_angle = ic_angle
+            start_angle = ic_angle   # 4 дом — внизу (6 часов)
         elif is_mc:
-            start_angle = mc_angle
+            start_angle = mc_angle   # 10 дом — вверху (12 часов)
         
         if is_angular:
             linewidth, alpha, color = 2.5, 0.9, '#e74c3c'
@@ -527,8 +525,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
                     bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
                              edgecolor='#cccccc', alpha=0.9))
     
-    # ===== ПОДПИСИ ASC, DSC, IC, MC НА ФИКСИРОВАННЫХ ПОЗИЦИЯХ =====
-    # Эти подписи ставятся отдельно, не в цикле домов
+    # ===== ПОДПИСИ НА ФИКСИРОВАННЫХ ПОЗИЦИЯХ =====
     ax.annotate('ASC', xy=(asc_angle, 1.45), ha='center', va='center',
                 fontsize=12, color='#e74c3c', weight='bold')
     ax.annotate('DSC', xy=(dsc_angle, 1.45), ha='center', va='center',
@@ -613,7 +610,6 @@ async def btn(update, ctx):
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Уран','Нептун','Плутон','Раху','Кету']:
             if p in natal: text += f"{SIGN_EMOJI.get(natal[p]['sign'],'')} {p}: *{natal[p]['sign']}* {natal[p]['degree']}°\n"
         
-        # Добавляем интерпретацию Узлов
         if 'Раху' in natal and 'Кету' in natal:
             rahu_house = None
             ketu_house = None
