@@ -300,21 +300,33 @@ def menu_btn():
 
 # ===== ПРОФЕССИОНАЛЬНАЯ ГРАФИЧЕСКАЯ КАРТА =====
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
-    """Профессиональная астрологическая карта: ASC слева, DSC справа, IC внизу, MC вверху"""
+    """
+    Профессиональная астрологическая карта.
+    Стандарт: ASC всегда слева (9 часов), DSC справа (3 часа),
+    MC вверху (12 часов), IC внизу (6 часов).
+    """
     
     fig, ax = plt.subplots(figsize=(12, 12), subplot_kw={'projection': 'polar'})
     
-    # === ПРОФЕССИОНАЛЬНЫЙ СТАНДАРТ ===
-    # В полярных координатах matplotlib (theta_zero='N', direction=1):
-    # 0° = 12 часов (вверху)
-    # 90° = 3 часа (справа)
-    # 180° = 6 часов (внизу)
-    # 270° = 9 часов (слева)
+    # === ПОЛУЧАЕМ ДАННЫЕ ===
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
     mc_lon = natal.get('MC', {}).get('lon', 0)
     
-    # Поворот: ASC на 270° (9 часов, слева)
-    rotation_offset = np.radians(270 - asc_lon)
+    # === НАСТРОЙКА ПОЛЯРНЫХ КООРДИНАТ ===
+    # theta_zero='N' — 0° наверху
+    # direction=1 — углы растут по часовой стрелке
+    # 
+    # В этой системе:
+    # 0° (0 рад) = верх (12 часов)
+    # 90° (π/2 рад) = право (3 часа)
+    # 180° (π рад) = низ (6 часов)
+    # 270° (3π/2 рад) = лево (9 часов)
+    #
+    # Нам нужно:
+    # ASC на 270° (слева, 9 часов)
+    # DSC на 90° (справа, 3 часа)
+    # MC на 0° (вверху, 12 часов)
+    # IC на 180° (внизу, 6 часов)
     
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(1)
@@ -325,12 +337,18 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     ax.set_facecolor('white')
     fig.patch.set_facecolor('white')
     
-    # Фиксированные позиции в полярных координатах matplotlib
-    asc_angle = np.radians(270)  # 9 часов (слева) = ASC (1 дом)
-    dsc_angle = np.radians(90)   # 3 часа (справа) = DSC (7 дом)
-    ic_angle = np.radians(180)   # 6 часов (внизу) = IC (4 дом)
-    mc_angle = np.radians(0)     # 12 часов (вверху) = MC (10 дом)
+    # === ВЫЧИСЛЯЕМ УГОЛ ПОВОРОТА ===
+    # Формула: чтобы точка с долготой asc_lon оказалась на 270°,
+    # нужно повернуть всё на (270 - asc_lon) градусов
+    rotation_offset = np.radians(270 - asc_lon)
     
+    # Фиксированные позиции угловых точек
+    ASC_ANGLE = np.radians(270)  # 9 часов — слева
+    DSC_ANGLE = np.radians(90)   # 3 часа — справа
+    MC_ANGLE = np.radians(0)     # 12 часов — вверху
+    IC_ANGLE = np.radians(180)   # 6 часов — внизу
+    
+    # === ЦВЕТА СТИХИЙ ===
     elements = {
         'Огонь': {'color': '#e74c3c', 'signs': ['Овен', 'Лев', 'Стрелец']},
         'Земля': {'color': '#27ae60', 'signs': ['Телец', 'Дева', 'Козерог']},
@@ -343,14 +361,21 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         for sign in data['signs']:
             sign_colors[sign] = data['color']
     
-    # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05 до 1.25) =====
+    # ===== 1-Й КРУГ: ЗНАКИ ЗОДИАКА (r=1.05 до 1.25) =====
     for i, sign in enumerate(SIGN_NAMES):
+        # Знак начинается с i*30°, применяем поворот
         start_angle = np.radians(i * 30) + rotation_offset
         end_angle = np.radians((i + 1) * 30) + rotation_offset
         color = sign_colors.get(sign, '#2c3e50')
+        
+        # Заливка сектора
         theta = np.linspace(start_angle, end_angle, 30)
         ax.fill_between(theta, 1.05, 1.25, color=color, alpha=0.25)
+        
+        # Границы сектора
         ax.plot([start_angle, start_angle], [1.05, 1.25], color=color, linewidth=1.5, alpha=0.5)
+        
+        # Подписи в середине сектора
         mid_angle = start_angle + np.radians(15)
         ax.annotate(f"{SIGN_EMOJI.get(sign, '')}",
                     xy=(mid_angle, 1.19), ha='center', va='center',
@@ -359,9 +384,10 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
                     xy=(mid_angle, 1.11), ha='center', va='center',
                     fontsize=7, color=color, weight='bold')
     
+    # Окружность, отделяющая знаки
     ax.plot(np.linspace(0, 2*np.pi, 300), [1.05]*300, color='#cccccc', linewidth=1, alpha=0.5)
     
-    # ===== ВТОРОЙ КРУГ: ПЛАНЕТЫ (r=0.88 до 1.05) =====
+    # ===== 2-Й КРУГ: ПЛАНЕТЫ (r=0.88 до 1.05) =====
     theta_bg = np.linspace(0, 2*np.pi, 300)
     ax.fill_between(theta_bg, 0.88, 1.05, color='#fafafa', alpha=0.5)
     ax.plot(np.linspace(0, 2*np.pi, 300), [0.88]*300, color='#cccccc', linewidth=1, alpha=0.5)
@@ -390,12 +416,15 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         degree_in_this_sign = data['degree']
         sign_index = SIGN_NAMES.index(data['sign'])
         sign_start_lon = sign_index * 30
+        
+        # Позиция планеты с учетом поворота
         angle = np.radians(sign_start_lon + degree_in_this_sign) + rotation_offset
         
         symbol = planet_symbols.get(name, '')
         r = planet_radii.get(name, 0.97)
         planet_positions[name] = (angle, r)
         
+        # Особый цвет для кармических точек
         if name in ['Раху', 'Кету']:
             planet_color = '#8B4513'
             planet_size = 14
@@ -403,16 +432,20 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
             planet_color = '#1a1a1a'
             planet_size = 13
         
+        # Символ планеты
         ax.annotate(symbol, xy=(angle, r), ha='center', va='center',
                     fontsize=planet_size, color=planet_color, weight='bold', zorder=9)
+        
+        # Градус планеты
         ax.annotate(f"{degree_in_this_sign}°",
                     xy=(angle, r + 0.025), ha='center', va='bottom',
                     fontsize=5.5, color=planet_color, weight='bold')
     
-    # ===== ТРЕТИЙ КРУГ: АСПЕКТЫ (r=0 до 0.88) =====
+    # ===== ЦЕНТР КАРТЫ =====
     earth = plt.Circle((0, 0), 0.04, color='#1a1a1a', zorder=10)
     ax.add_artist(earth)
     
+    # ===== 3-Й КРУГ: АСПЕКТЫ =====
     aspect_lines = get_aspects_with_angles(natal)
     aspect_colors = {
         'соединение': '#e74c3c', 'оппозиция': '#e74c3c',
@@ -434,69 +467,67 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
             ax.plot([ang1, ang2], [r1, r2], color=color, linewidth=lw, 
                     alpha=alpha, linestyle=linestyle, zorder=1)
     
-    # ===== КУСПИДЫ ДОМОВ — принудительная фиксация =====
+    # ===== КУСПИДЫ ДОМОВ =====
     asc_lon_val = natal.get('Асцендент', {}).get('lon', 0)
     mc_lon_val = natal.get('MC', {}).get('lon', 0)
     dsc_lon_val = (asc_lon_val + 180) % 360
     ic_lon_val = (mc_lon_val + 180) % 360
     
+    # Функция для вычисления разницы углов с учетом перехода через 0°
+    def angle_diff(a, b):
+        diff = abs(a - b) % 360
+        return min(diff, 360 - diff)
+    
     for i, house in enumerate(natal.get('houses', [])):
         house_lon = house['lon']
         
-        # Упрощенное сравнение с учетом перехода через 0°
-        diff_asc = min(abs(house_lon - asc_lon_val), 360 - abs(house_lon - asc_lon_val))
-        diff_mc = min(abs(house_lon - mc_lon_val), 360 - abs(house_lon - mc_lon_val))
-        diff_dsc = min(abs(house_lon - dsc_lon_val), 360 - abs(house_lon - dsc_lon_val))
-        diff_ic = min(abs(house_lon - ic_lon_val), 360 - abs(house_lon - ic_lon_val))
-        
-        is_asc = diff_asc < 2.0
-        is_mc = diff_mc < 2.0
-        is_dsc = diff_dsc < 2.0
-        is_ic = diff_ic < 2.0
+        # Определяем, является ли куспид угловым (с допуском 2°)
+        is_asc = angle_diff(house_lon, asc_lon_val) < 2.0
+        is_mc = angle_diff(house_lon, mc_lon_val) < 2.0
+        is_dsc = angle_diff(house_lon, dsc_lon_val) < 2.0
+        is_ic = angle_diff(house_lon, ic_lon_val) < 2.0
         
         is_angular = is_asc or is_mc or is_dsc or is_ic
         
-        # Принудительно корректируем углы
+        # Принудительная установка угла для угловых куспидов
         if is_asc:
-            start_angle = asc_angle
+            start_angle = ASC_ANGLE
         elif is_dsc:
-            start_angle = dsc_angle
+            start_angle = DSC_ANGLE
         elif is_ic:
-            start_angle = ic_angle
+            start_angle = IC_ANGLE
         elif is_mc:
-            start_angle = mc_angle
+            start_angle = MC_ANGLE
         else:
             start_angle = np.radians(house_lon) + rotation_offset
         
+        # Стиль линии куспида
         if is_angular:
             linewidth, alpha, color = 2.5, 0.9, '#e74c3c'
         else:
             linewidth, alpha, color = 1.2, 0.7, '#1a1a1a'
         
+        # Рисуем линию куспида
         ax.plot([start_angle, start_angle], [0.88, 1.25], color=color, 
                 linewidth=linewidth, alpha=alpha, linestyle='-')
         
+        # Вычисляем середину дома
         next_house = natal['houses'][(i+1) % 12]
         next_house_lon = next_house['lon']
         
-        diff_next_asc = min(abs(next_house_lon - asc_lon_val), 360 - abs(next_house_lon - asc_lon_val))
-        diff_next_mc = min(abs(next_house_lon - mc_lon_val), 360 - abs(next_house_lon - mc_lon_val))
-        diff_next_dsc = min(abs(next_house_lon - dsc_lon_val), 360 - abs(next_house_lon - dsc_lon_val))
-        diff_next_ic = min(abs(next_house_lon - ic_lon_val), 360 - abs(next_house_lon - ic_lon_val))
-        
-        next_is_asc = diff_next_asc < 2.0
-        next_is_mc = diff_next_mc < 2.0
-        next_is_dsc = diff_next_dsc < 2.0
-        next_is_ic = diff_next_ic < 2.0
+        next_is_asc = angle_diff(next_house_lon, asc_lon_val) < 2.0
+        next_is_mc = angle_diff(next_house_lon, mc_lon_val) < 2.0
+        next_is_dsc = angle_diff(next_house_lon, dsc_lon_val) < 2.0
+        next_is_ic = angle_diff(next_house_lon, ic_lon_val) < 2.0
         
         if next_is_asc:
-            next_start_angle = asc_angle
+            next_start_angle = ASC_ANGLE
         elif next_is_dsc:
-            next_start_angle = dsc_angle
+            next_start_angle = DSC_ANGLE
         elif next_is_ic:
-            next_start_angle = ic_angle
+            next_start_angle = IC_ANGLE
         elif next_is_mc:
-            next_start_angle = mc_angle
+            next_start_angle = MC_ANGLE
         else:
             next_start_angle = np.radians(next_house_lon) + rotation_offset
         
@@ -506,30 +537,31 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         if mid_angle > 2 * np.pi:
             mid_angle -= 2 * np.pi
         
+        # Подпись градуса куспида
         sign_name = house['sign']
         sign_deg = house['degree']
-        
         ax.annotate(f"{sign_deg}° {SIGN_EMOJI.get(sign_name, '')}",
                     xy=(start_angle, 1.28), ha='center', va='center',
                     fontsize=5.5, color='#555')
         
+        # Номер дома
         ax.annotate(str(house['house_num']),
                     xy=(mid_angle, 1.35), ha='center', va='center',
                     fontsize=10, color='#1a1a1a', weight='bold',
                     bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
                              edgecolor='#cccccc', alpha=0.9))
     
-    # ===== ПОДПИСИ НА ФИКСИРОВАННЫХ ПОЗИЦИЯХ =====
-    ax.annotate('ASC', xy=(asc_angle, 1.45), ha='center', va='center',
+    # ===== ПОДПИСИ УГЛОВЫХ ТОЧЕК =====
+    ax.annotate('ASC', xy=(ASC_ANGLE, 1.45), ha='center', va='center',
                 fontsize=12, color='#e74c3c', weight='bold')
-    ax.annotate('DSC', xy=(dsc_angle, 1.45), ha='center', va='center',
+    ax.annotate('DSC', xy=(DSC_ANGLE, 1.45), ha='center', va='center',
                 fontsize=12, color='#e74c3c', weight='bold')
-    ax.annotate('IC', xy=(ic_angle, 1.45), ha='center', va='center',
+    ax.annotate('IC', xy=(IC_ANGLE, 1.45), ha='center', va='center',
                 fontsize=12, color='#e74c3c', weight='bold')
-    ax.annotate('MC', xy=(mc_angle, 1.45), ha='center', va='center',
+    ax.annotate('MC', xy=(MC_ANGLE, 1.45), ha='center', va='center',
                 fontsize=12, color='#e74c3c', weight='bold')
     
-    # Заголовок
+    # ===== ЗАГОЛОВОК =====
     title = 'НАТАЛЬНАЯ КАРТА'
     if city_name:
         title += f' • {city_name.title()}'
@@ -539,7 +571,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig.text(0.5, 0.98, title, ha='center', va='top',
              fontsize=16, color='#1a1a1a', weight='bold', fontfamily='serif')
     
-    # Планеты в знаках — компактно снизу
+    # ===== СТРОКА ПЛАНЕТ СНИЗУ =====
     planet_names = ['Солнце', 'Луна', 'Меркурий', 'Венера', 'Марс', 
                     'Юпитер', 'Сатурн', 'Уран', 'Нептун', 'Плутон',
                     'Раху', 'Кету']
