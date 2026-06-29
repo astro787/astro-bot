@@ -15,34 +15,6 @@ from io import BytesIO
 import atexit
 import json
 import time
-import signal
-import subprocess
-
-# ========== ЗАЩИТА ОТ ДВОЙНОГО ЗАПУСКА ==========
-current_pid = os.getpid()
-try:
-    # Найти и убить все старые процессы бота
-    result = subprocess.run(
-        f"pgrep -f 'python.*bot.py' | grep -v {current_pid}",
-        shell=True, capture_output=True, text=True
-    )
-    old_pids = result.stdout.strip().split('\n')
-    
-    for pid in old_pids:
-        if pid and pid.isdigit():
-            try:
-                os.kill(int(pid), signal.SIGKILL)
-                print(f"✅ Убит старый процесс: {pid}")
-            except:
-                pass
-    
-    # Даём время на завершение
-    time.sleep(3)
-except Exception as e:
-    print(f"⚠️ Предупреждение при очистке процессов: {e}")
-
-print(f"🚀 Запуск бота. PID: {current_pid}")
-# ========== КОНЕЦ ЗАЩИТЫ ==========
 
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
@@ -178,21 +150,6 @@ load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
 API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
 ai_client = AIClient(API_URL, HF_TOKEN)
-
-# ===== KEEP-ALIVE СЕРВЕР =====
-class PingHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"OK")
-    def log_message(self, format, *args):
-        pass
-
-def run_keepalive():
-    port = int(os.getenv("PORT", 10000))
-    server = HTTPServer(('0.0.0.0', port), PingHandler)
-    print(f"Keep-alive сервер на порту {port}")
-    server.serve_forever()
 
 swe.set_ephe_path(None)
 
@@ -332,7 +289,6 @@ HOUSE_NAMES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'
 
 # ========== ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ ==========
 load_users()
-# Сохраняем при выходе
 atexit.register(save_users)
 
 def get_zodiac_sign(day, month):
@@ -370,7 +326,6 @@ def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62,
             natal[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
         except: continue
     
-    # Лунные узлы
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
         natal['Раху'] = {
@@ -504,7 +459,6 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
     offset = np.radians(90) - np.radians(asc_lon)
     
-    # Знаки зодиака
     for i, sign in enumerate(SIGN_NAMES):
         sign_start = i * 30
         sign_end = sign_start + 30
@@ -525,7 +479,6 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     
     ax.plot(np.linspace(0, 2*np.pi, 300), [1.05]*300, color='#cccccc', linewidth=1, alpha=0.5)
     
-    # Планеты
     theta_bg = np.linspace(0, 2*np.pi, 300)
     ax.fill_between(theta_bg, 0.90, 1.05, color='#fafafa', alpha=0.5)
     ax.plot(np.linspace(0, 2*np.pi, 300), [0.90]*300, color='#cccccc', linewidth=1, alpha=0.5)
@@ -573,7 +526,6 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
                     xy=(angle, r + 0.02), ha='center', va='bottom',
                     fontsize=5.5, color=color, weight='bold')
     
-    # Аспекты
     earth = plt.Circle((0, 0), 0.04, color='#1a1a1a', zorder=10)
     ax.add_artist(earth)
     
@@ -598,7 +550,6 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
             ax.plot([ang1, ang2], [r1, r2], color=color, linewidth=lw, 
                     alpha=alpha, linestyle=linestyle, zorder=1)
     
-    # Куспиды домов
     for i, house in enumerate(natal.get('houses', [])):
         house_lon = house['lon']
         house_angle = np.radians(house_lon) + offset
@@ -795,14 +746,12 @@ async def msg(update, ctx):
             day, month, year = map(int, t.split('.')); hour, minute = 12, 0; city_str = 'москва'
         else: raise ValueError
         
-        # Валидация
         validate_date(day, month, year)
         validate_time(hour, minute)
         
         lat, lon, city_name = parse_city(city_str); sign = get_zodiac_sign(day, month)
         users[uid] = {'sign':sign,'day':day,'month':month,'year':year,'hour':hour,'minute':minute,'lat':lat,'lon':lon,'city':city_name}
         
-        # Сохраняем
         save_users()
         
         kb = [[InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
@@ -819,13 +768,22 @@ async def msg(update, ctx):
         await update.message.reply_text("❌ Произошла ошибка. Попробуйте другой формат:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*", reply_markup=back_btn(), parse_mode='Markdown')
 
 def main():
-    app = Application.builder().token(os.getenv('TELEGRAM_TOKEN')).build()
+    TOKEN = os.getenv('TELEGRAM_TOKEN')
+    PORT = int(os.getenv('PORT', 10000))
+    
+    app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(btn))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
-    print("Бот запущен!")
-    app.run_polling(drop_pending_updates=True)
+    
+    # Webhook режим — без конфликтов!
+    print(f"🚀 Бот запущен через Webhook на порту {PORT}")
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=TOKEN,
+        webhook_url=f"https://astro-bot-ev3p.onrender.com/{TOKEN}"
+    )
 
 if __name__ == '__main__':
-    threading.Thread(target=run_keepalive, daemon=True).start()
     main()
