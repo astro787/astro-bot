@@ -750,24 +750,166 @@ async def btn(update, ctx):
         if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         await q.message.reply_text("🔮 Рассчитываю и генерирую прогноз...")
+        
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
-        transits = calc_transits(); aspects = get_aspects(natal)
-        astro = f"Карта: ☀ {natal['Солнце']['sign']} {natal['Солнце']['degree']}°, 🌙 {natal['Луна']['sign']} {natal['Луна']['degree']}°, ASC {natal['Асцендент']['sign']}, MC {natal['MC']['sign']}\n"
-        astro += f"Транзиты: ☀ {transits['Солнце']['sign']}, 🌙 {transits['Луна']['sign']}, ♂ {transits['Марс']['sign']}\n"
-        if 'Раху' in natal and 'Раху' in transits:
-            astro += f"Узлы: ☊ Раху в {natal['Раху']['sign']}, транзит в {transits['Раху']['sign']}\n"
-        if aspects: astro += f"Аспекты: {', '.join(aspects[:3])}"
-        prompt = f"Ты астролог. Прогноз на {period}:\n{astro}\n\n6-8 предложений по сферам: любовь, карьера, здоровье, совет. Учти влияние Лунных узлов Раху и Кету. С эмодзи."
-        forecast = ai_client.ask(prompt)
+        transits = calc_transits()
+        aspects = get_aspects(natal)
+        
+        sun_sign = natal['Солнце']['sign']
+        moon_sign = natal['Луна']['sign']
+        asc_sign = natal['Асцендент']['sign']
+        
+        moon_house = None
+        for h in natal['houses']:
+            if h['sign'] == natal['Луна']['sign']:
+                moon_house = h['house_num']
+                break
+        
+        elements_count = {'Огонь': 0, 'Земля': 0, 'Воздух': 0, 'Вода': 0}
+        element_map = {
+            'Овен': 'Огонь', 'Лев': 'Огонь', 'Стрелец': 'Огонь',
+            'Телец': 'Земля', 'Дева': 'Земля', 'Козерог': 'Земля',
+            'Близнецы': 'Воздух', 'Весы': 'Воздух', 'Водолей': 'Воздух',
+            'Рак': 'Вода', 'Скорпион': 'Вода', 'Рыбы': 'Вода',
+        }
+        for planet in ['Солнце','Луна','Меркурий','Венера','Марс']:
+            if planet in natal:
+                elem = element_map.get(natal[planet]['sign'], '')
+                if elem:
+                    elements_count[elem] += 1
+        
+        dominant = max(elements_count, key=elements_count.get)
+        
+        transit_aspects = []
+        for t_name, t_data in transits.items():
+            if t_name in ['Раху', 'Кету']: continue
+            for n_name, n_data in natal.items():
+                if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']: continue
+                diff = abs(t_data['lon'] - n_data['lon']) % 360
+                if diff > 180: diff = 360 - diff
+                if diff <= 3:
+                    transit_aspects.append(f"☌ {t_name} транзит соединяется с {n_name} натальным")
+                elif abs(diff-60) <= 3:
+                    transit_aspects.append(f"⚹ {t_name} транзит в секстиле к {n_name}")
+                elif abs(diff-90) <= 3:
+                    transit_aspects.append(f"□ {t_name} транзит в квадрате к {n_name}")
+                elif abs(diff-120) <= 3:
+                    transit_aspects.append(f"△ {t_name} транзит в тригоне к {n_name}")
+                elif abs(diff-180) <= 3:
+                    transit_aspects.append(f"☍ {t_name} транзит в оппозиции к {n_name}")
+        
+        astro = f"""
+*Астрологические данные:*
+
+☀ Солнце в {sun_sign} {natal['Солнце']['degree']}°
+🌙 Луна в {moon_sign} {natal['Луна']['degree']}° (в {moon_house if moon_house else '?'} доме)
+⬆ ASC в {asc_sign}
+🔥 Доминирующая стихия: {dominant}
+
+*Транзиты:*
+☀ {transits['Солнце']['sign']} | 🌙 {transits['Луна']['sign']} | ☿ {transits['Меркурий']['sign']}
+♀ {transits['Венера']['sign']} | ♂ {transits['Марс']['sign']} | ♃ {transits['Юпитер']['sign']}
+♄ {transits['Сатурн']['sign']} | ☊ {transits['Раху']['sign']} | ☋ {transits['Кету']['sign']}
+
+*Натальные аспекты:* {', '.join(aspects[:4]) if aspects else 'нет значимых'}
+"""
+        
+        if transit_aspects:
+            astro += f"\n*Транзитные аспекты к натальной карте:*\n"
+            for ta in transit_aspects[:5]:
+                astro += f"• {ta}\n"
+        
+        prompt = f"""Ты — профессиональный астролог с 12-летним опытом консультирования. Твоя специализация: точные прогнозы по транзитам и натальной карте.
+
+ВАЖНЫЕ ПРАВИЛА:
+1. Основывайся ТОЛЬКО на предоставленных астро-данных
+2. Не выдумывай конкретные события — говори о тенденциях и энергиях
+3. Учитывай все факторы: положение Солнца/Луны, транзитные аспекты, дома, Лунные узлы
+4. Пиши конкретно, избегай общих фраз вроде "будьте осторожны"
+5. Указывай причину прогноза: "потому что Марс в квадрате к вашему Солнцу..."
+6. Используй профессиональные термины, но объясняй их
+7. Структура ответа:
+   ❤️ Любовь и отношения (2-3 предложения с астро-обоснованием)
+   💼 Карьера и финансы (2-3 предложения с астро-обоснованием)
+   🏃 Здоровье и энергия (2-3 предложения с астро-обоснованием)
+   🌟 Главный совет на {period} (1-2 предложения)
+
+АСТРО-ДАННЫЕ ДЛЯ ПРОГНОЗА НА {period.upper()}:
+{astro}
+
+Дай развёрнутый прогноз. 12-16 предложений. Используй эмодзи."""
+        
+        forecast = ai_client.ask(prompt, max_tokens=700)
         if forecast:
             parts = ai_client.split_message(forecast)
             for i, part in enumerate(parts):
                 if i == 0:
-                    await update.effective_message.reply_text(f"🌟 *Прогноз на {period}* 🌟\n\n{part}", reply_markup=back_btn(), parse_mode='Markdown')
+                    await update.effective_message.reply_text(
+                        f"🌟 *Прогноз на {period}* 🌟\n\n{part}",
+                        reply_markup=back_btn(),
+                        parse_mode='Markdown'
+                    )
                 else:
                     await update.effective_message.reply_text(part)
         else:
-            await update.effective_message.reply_text(f"✨ Прогноз на {period}\n\n❤️ Любовь: благоприятный период\n💼 Карьера: новые возможности\n🏃 Здоровье: всё стабильно\n\n🌟 Совет: доверяйте интуиции", reply_markup=back_btn())
+            love_text = {
+                'Овен': 'время страсти и новых знакомств',
+                'Телец': 'время чувственности и стабильности',
+                'Близнецы': 'время общения и флирта',
+                'Рак': 'время глубоких эмоций и заботы',
+                'Лев': 'время романтики и внимания',
+                'Дева': 'время практичности в отношениях',
+                'Весы': 'время гармонии и партнёрства',
+                'Скорпион': 'время страсти и трансформации',
+                'Стрелец': 'время приключений и свободы',
+                'Козерог': 'время серьёзных решений',
+                'Водолей': 'время необычных знакомств',
+                'Рыбы': 'время романтики и вдохновения',
+            }
+            
+            career_text = {
+                'Овен': 'проявите инициативу, вас заметят',
+                'Телец': 'сосредоточьтесь на финансах',
+                'Близнецы': 'делитесь идеями, налаживайте связи',
+                'Рак': 'работайте в комфортном темпе',
+                'Лев': 'берите лидерство, вас поддержат',
+                'Дева': 'время анализа и планирования',
+                'Весы': 'ищите баланс и партнёрство',
+                'Скорпион': 'копайте глубже, найдёте скрытое',
+                'Стрелец': 'расширяйте горизонты, учитесь',
+                'Козерог': 'стройте долгосрочные планы',
+                'Водолей': 'внедряйте инновации',
+                'Рыбы': 'доверьтесь интуиции в делах',
+            }
+            
+            health_text = {
+                'Огонь': 'много энергии, займитесь спортом',
+                'Земля': 'стабильное состояние, держите режим',
+                'Воздух': 'берегите нервную систему',
+                'Вода': 'больше отдыхайте, возможна усталость',
+            }
+            
+            fallback = f"""🌟 *Прогноз на {period}*
+
+❤️ *Любовь:* {love_text.get(transits['Венера']['sign'], 'благоприятный период')} — Венера в {transits['Венера']['sign']} способствует этому.
+
+💼 *Карьера:* {career_text.get(transits['Марс']['sign'], 'сосредоточьтесь на задачах')} — Марс в {transits['Марс']['sign']} даёт такую энергию.
+
+🏃 *Здоровье:* {health_text.get(dominant, 'поддерживайте баланс')}
+
+🌟 *Совет:* {
+'Действуйте смело — транзитный Марс поддерживает инициативы' if transits['Марс']['sign'] in ['Овен','Лев','Стрелец']
+else 'Планируйте тщательно — Сатурн требует дисциплины' if transits['Сатурн']['sign'] in ['Козерог','Водолей']
+else 'Слушайте сердце — Луна в водном знаке обостряет интуицию' if transits['Луна']['sign'] in ['Рак','Скорпион','Рыбы']
+else 'День благоприятен для общения и новых идей'}.
+
+☊ *Раху в {transits["Раху"]["sign"]}* — {'время расширять зону комфорта' if transits['Раху']['sign'] in ['Овен','Лев','Стрелец'] else 'время практического роста' if transits['Раху']['sign'] in ['Телец','Дева','Козерог'] else 'время новых знаний' if transits['Раху']['sign'] in ['Близнецы','Весы','Водолей'] else 'время эмоционального роста'}."""
+            
+            await update.effective_message.reply_text(
+                fallback,
+                reply_markup=back_btn(),
+                parse_mode='Markdown'
+            )
     elif d == 'natal':
         if uid not in users: 
             await q.edit_message_text(
