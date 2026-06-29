@@ -746,7 +746,7 @@ async def btn(update, ctx):
                 ]),
                 parse_mode='Markdown'
             )
-    elif d.startswith('f_'):
+        elif d.startswith('f_'):
         if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         await q.message.reply_text("🔮 Рассчитываю и генерирую прогноз...")
