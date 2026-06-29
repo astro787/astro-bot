@@ -431,17 +431,18 @@ def parse_city(city_str):
     return 55.75, 37.62, 'москва'
 
 def back_btn():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Меню", callback_data="back")]])
+    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]])
 
 def menu_btn():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
-        [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
-        [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
-        [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
-        [InlineKeyboardButton("💑 Совместимость", callback_data="compat")],
-        [InlineKeyboardButton("🌙 Луна", callback_data="moon")],
-        [InlineKeyboardButton("📅 Гороскоп", callback_data="daily")]
+        [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal"),
+         InlineKeyboardButton("🏠 Дома", callback_data="houses")],
+        [InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast"),
+         InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
+        [InlineKeyboardButton("💑 Совместимость", callback_data="compat"),
+         InlineKeyboardButton("🌙 Луна", callback_data="moon")],
+        [InlineKeyboardButton("📅 Ежедневный гороскоп", callback_data="daily")],
+        [InlineKeyboardButton("ℹ️ Помощь", callback_data="help")]
     ])
 
 # ===== ГРАФИЧЕСКАЯ КАРТА =====
@@ -633,36 +634,69 @@ async def start(update, ctx):
 Создан практикующим астрологом с 12-летним опытом консультирования.
 
 🔬 *Техническая база:*
-• Швейцарские эфемериды (Swiss Ephemeris) — точные астрономические расчёты
+• Швейцарские эфемериды (Swiss Ephemeris)
 • Система домов Плацидуса
-• Полный учёт Лунных узлов (☊ Раху / ☋ Кету)
+• Лунные узлы (☊ Раху / ☋ Кету)
 • Профессиональная графическая карта
 
-✨ *Что я умею:*
-• 🌟 Натальная карта с полной расшифровкой
-• 🔮 Прогнозы на основе реальных транзитов
-• 💞 Совместимость по знакам зодиака
+✨ *Возможности:*
+• 🌟 Натальная карта
+• 🔮 Прогнозы по реальным транзитам
+• 💞 Совместимость
 • 🌙 Лунный календарь
 • 📅 Ежедневный гороскоп
 
-⚙️ *Как начать:*
-Просто введите дату рождения в одном из форматов:
+⚙️ *Введите данные:*
 
 📝 *Форматы:*
 • `15.05.1990` — полдень, Москва
 • `15.05.1990 14 30` — Москва
 • `15.05.1990 14 30 Москва`
-• `15.05.1990 14 30 Нью-Йорк`
 
-🌍 *Доступно:* 100+ городов России, СНГ и мира
+🌍 100+ городов | 🎯 Математическая точность
 
-🎯 *Точность:* Математический расчёт исключает человеческий фактор
-
-Готовы? Приступаем! ⬇️
+Готовы? ⬇️
 """
     await update.message.reply_text(
         welcome_text,
         reply_markup=menu_btn(),
+        parse_mode='Markdown'
+    )
+
+async def help_command(update, ctx):
+    help_text = """
+📖 *Справка по АстроБоту*
+
+👤 *Автор:* Практикующий астролог с 12-летним стажем
+
+📝 *Форматы ввода данных:*
+• `ДД.ММ.ГГГГ` — полдень, Москва
+• `ДД.ММ.ГГГГ ЧЧ ММ` — Москва
+• `ДД.ММ.ГГГГ ЧЧ ММ Город`
+
+🌍 *Примеры городов:*
+🇷🇺 Москва, Питер, Казань, Сочи, Екатеринбург, Владивосток
+🇧🇾 Минск, Гомель
+🇰🇿 Астана, Алматы
+🇺🇸 Нью-Йорк, 🇬🇧 Лондон, 🇫🇷 Париж, 🇯🇵 Токио
+
+🔧 *Функции:*
+🌟 *Натальная карта* — расчёт + графика
+🏠 *Дома гороскопа* — 12 домов
+🔮 *Прогноз ИИ* — день/неделя/месяц
+🪐 *Транзиты* — планеты сейчас
+💑 *Совместимость* — по знакам
+🌙 *Луна* — фаза и положение
+📅 *Гороскоп* — на сегодня
+
+*Особенности:*
+• ☊ Раху и ☋ Кету — Лунные узлы
+• 🎨 Графическая карта
+• 🤖 AI-прогнозы (Mistral-7B)
+• 💾 Данные сохраняются
+"""
+    await update.message.reply_text(
+        help_text,
         parse_mode='Markdown'
     )
 
@@ -672,7 +706,7 @@ async def btn(update, ctx):
         if uid in users:
             ctx.user_data['mode'] = 'fp'
             kb = [[InlineKeyboardButton("📅 День", callback_data="f_day"), InlineKeyboardButton("📆 Неделя", callback_data="f_week")],
-                  [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Меню", callback_data="back")]]
+                  [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
             await q.edit_message_text(f"✨ *{users[uid]['sign']}* ✨\n\nПериод:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         else:
             await q.edit_message_text("📝 Введите: *ДД.ММ.ГГГГ ЧЧ ММ Город*\nПример: 15.05.1990 14 30 Москва", reply_markup=back_btn(), parse_mode='Markdown')
@@ -722,7 +756,7 @@ async def btn(update, ctx):
         await update.effective_message.reply_text(
             text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔙 Меню", callback_data="back")]
+                [InlineKeyboardButton("🔙 Назад", callback_data="back")]
             ]),
             parse_mode='Markdown'
         )
@@ -761,6 +795,8 @@ async def btn(update, ctx):
             elif 'Кету' in transits and sign == transits['Кету']['sign']: text += "☋ Кету в знаке\n"
             else: text += "✨ Хороший день\n"
         await q.edit_message_text(text[:4000], reply_markup=back_btn(), parse_mode='Markdown')
+    elif d == 'help':
+        await help_command(update, ctx)
     elif d == 'newdata':
         ctx.user_data['mode'] = 'newdata'
         await q.edit_message_text("📝 Введите новые данные:\n*ДД.ММ.ГГГГ ЧЧ ММ Город*\nПример: 15.05.1990 14 30 Москва", reply_markup=back_btn(), parse_mode='Markdown')
@@ -777,7 +813,7 @@ async def msg(update, ctx):
             prompt = f"Совместимость {parts[0]} и {parts[1]}. Процент и 2-3 предложения."
             fc = ai_client.ask(prompt) or "70% — Хорошая совместимость"
             ctx.user_data['mode'] = ''
-            await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💑 Ещё", callback_data="compat"),InlineKeyboardButton("🔙 Меню", callback_data="back")]]), parse_mode='Markdown')
+            await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💑 Ещё", callback_data="compat"),InlineKeyboardButton("🔙 Назад", callback_data="back")]]), parse_mode='Markdown')
             return
         await update.message.reply_text("❌ *Овен Телец*", reply_markup=back_btn(), parse_mode='Markdown')
         return
@@ -804,7 +840,7 @@ async def msg(update, ctx):
               [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
               [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
               [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata")],
-              [InlineKeyboardButton("🔙 Меню", callback_data="back")]]
+              [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
         await update.message.reply_text(f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     except ValueError as e:
         await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*\n• *15.05.1990 14 30 Нью-Йорк*", reply_markup=back_btn(), parse_mode='Markdown')
@@ -817,10 +853,10 @@ def main():
     
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler('start', start))
+    app.add_handler(CommandHandler('help', help_command))
     app.add_handler(CallbackQueryHandler(btn))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     
-    # Keep-alive сервер в фоне (для Render)
     threading.Thread(target=run_keepalive, daemon=True).start()
     
     print("🚀 Бот запущен!")
