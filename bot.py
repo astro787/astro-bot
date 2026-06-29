@@ -744,9 +744,9 @@ async def btn(update, ctx):
                     [InlineKeyboardButton("📝 Ввести без времени", callback_data="newdata_noon")],
                     [InlineKeyboardButton("🔙 Назад", callback_data="back")]
                 ]),
-                parse_mode='Markdown'
+                  parse_mode='Markdown'
             )
-        elif d.startswith('f_'):
+    elif d.startswith('f_'):
         if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         await q.message.reply_text("🔮 Рассчитываю и генерирую прогноз...")
