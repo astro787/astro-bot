@@ -12,12 +12,144 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
+import atexit
+import json
+import time
+
+# ========== ВАЛИДАЦИЯ ==========
+def validate_date(day: int, month: int, year: int):
+    """Проверяет корректность даты"""
+    current_year = datetime.now().year
+    if year < 1900 or year > current_year:
+        raise ValueError(f"Год должен быть между 1900 и {current_year}, получено: {year}")
+    if not (1 <= month <= 12):
+        raise ValueError(f"Месяц должен быть 1-12, получено: {month}")
+    if not (1 <= day <= 31):
+        raise ValueError(f"День должен быть 1-31, получено: {day}")
+    try:
+        datetime(year, month, day)
+        return True
+    except ValueError:
+        raise ValueError(f"Дата не существует: {day:02d}.{month:02d}.{year}")
+
+def validate_time(hour: int, minute: int):
+    """Проверяет корректность времени"""
+    if not (0 <= hour <= 23):
+        raise ValueError(f"Часы должны быть 0-23, получено: {hour}")
+    if not (0 <= minute <= 59):
+        raise ValueError(f"Минуты должны быть 0-59, получено: {minute}")
+    return True
+# ========== КОНЕЦ ВАЛИДАЦИИ ==========
+
+# ========== AI КЛИЕНТ ==========
+class AIClient:
+    """Надёжный клиент для AI с повторными попытками"""
+    
+    def __init__(self, api_url, token, max_retries=3, timeout=40):
+        self.api_url = api_url
+        self.headers = {"Authorization": f"Bearer {token}"}
+        self.max_retries = max_retries
+        self.timeout = timeout
+    
+    def ask(self, prompt, max_tokens=400):
+        """Отправляет запрос с повторными попытками"""
+        for attempt in range(self.max_retries):
+            try:
+                response = requests.post(
+                    self.api_url,
+                    headers=self.headers,
+                    json={"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}},
+                    timeout=self.timeout
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if isinstance(data, list) and data:
+                        text = data[0].get("generated_text", "").strip()
+                        if text and len(text) > 10:
+                            print(f"✅ AI ответ: {len(text)} символов")
+                            return text
+                
+                elif response.status_code == 503:
+                    wait = 10 * (attempt + 1)
+                    print(f"⏳ Модель загружается, ждём {wait}с...")
+                    time.sleep(wait)
+                elif response.status_code == 429:
+                    wait = 20 * (attempt + 1)
+                    print(f"⏳ Rate limit, ждём {wait}с...")
+                    time.sleep(wait)
+                else:
+                    print(f"❌ Ошибка API: {response.status_code}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(5)
+            
+            except requests.Timeout:
+                print(f"⏱ Таймаут (попытка {attempt+1}/{self.max_retries})")
+                if attempt < self.max_retries - 1:
+                    time.sleep(5)
+            except Exception as e:
+                print(f"❌ Ошибка: {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(5)
+        
+        print("❌ Все попытки исчерпаны")
+        return None
+    
+    @staticmethod
+    def split_message(text, max_length=4000):
+        """Разбивает длинное сообщение на части"""
+        parts = []
+        while len(text) > max_length:
+            split_pos = text.rfind('\n', 0, max_length)
+            if split_pos == -1 or split_pos < max_length * 0.7:
+                split_pos = text.rfind('. ', 0, max_length)
+            if split_pos == -1 or split_pos < max_length * 0.7:
+                split_pos = text.rfind(' ', 0, max_length)
+            if split_pos == -1:
+                split_pos = max_length
+            parts.append(text[:split_pos].strip())
+            text = text[split_pos:].strip()
+        if text:
+            parts.append(text)
+        return parts
+# ========== КОНЕЦ AI КЛИЕНТА ==========
+
+# ========== JSON ХРАНИЛИЩЕ ==========
+USERS_FILE = 'data/users.json'
+
+def save_users():
+    """Сохраняет пользователей в JSON"""
+    try:
+        os.makedirs('data', exist_ok=True)
+        data_to_save = {str(k): v for k, v in users.items()}
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+        print(f"✅ Сохранено: {len(users)} пользователей")
+    except Exception as e:
+        print(f"❌ Ошибка сохранения: {e}")
+
+def load_users():
+    """Загружает пользователей из JSON"""
+    global users
+    try:
+        if os.path.exists(USERS_FILE):
+            with open(USERS_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            users = {int(k): v for k, v in data.items()}
+            print(f"📂 Загружено: {len(users)} пользователей")
+        else:
+            print("📄 Файл не найден, начинаем с пустого")
+            users = {}
+    except Exception as e:
+        print(f"❌ Ошибка загрузки: {e}")
+        users = {}
+# ========== КОНЕЦ JSON ХРАНИЛИЩА ==========
 
 load_dotenv()
 
 HF_TOKEN = os.getenv("HF_TOKEN")
 API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
-HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
+ai_client = AIClient(API_URL, HF_TOKEN)
 
 # ===== KEEP-ALIVE СЕРВЕР =====
 class PingHandler(BaseHTTPRequestHandler):
@@ -33,14 +165,6 @@ def run_keepalive():
     server = HTTPServer(('0.0.0.0', port), PingHandler)
     print(f"Keep-alive сервер на порту {port}")
     server.serve_forever()
-
-def ask_ai(prompt):
-    try:
-        r = requests.post(API_URL, headers=HEADERS, json={"inputs": prompt, "parameters": {"max_new_tokens": 400}}, timeout=40)
-        d = r.json()
-        if isinstance(d, list) and d: return d[0]["generated_text"].strip()
-    except: pass
-    return None
 
 swe.set_ephe_path(None)
 
@@ -178,7 +302,10 @@ PLANETS = {'Солнце': swe.SUN, 'Луна': swe.MOON, 'Меркурий': sw
 
 HOUSE_NAMES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
 
-users = {}
+# ========== ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ ==========
+load_users()
+# Сохраняем при выходе
+atexit.register(save_users)
 
 def get_zodiac_sign(day, month):
     for sign, (sm, sd, em, ed) in ZODIAC_SIGNS.items():
@@ -215,28 +342,24 @@ def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62,
             natal[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
         except: continue
     
-    # === ЛУННЫЕ УЗЛЫ (РАХУ И КЕТУ) ===
+    # Лунные узлы
     try:
-        # Раху (Северный узел) - среднее положение
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
         natal['Раху'] = {
             'sign': sign_from_lon(rahu_lon), 
             'degree': degree_in_sign(rahu_lon), 
             'lon': rahu_lon,
-            'retro': True  # Раху всегда ретрограден
+            'retro': True
         }
-        
-        # Кету (Южный узел) - всегда в оппозиции к Раху
         ketu_lon = (rahu_lon + 180) % 360
         natal['Кету'] = {
             'sign': sign_from_lon(ketu_lon), 
             'degree': degree_in_sign(ketu_lon), 
             'lon': ketu_lon,
-            'retro': True  # Кету всегда ретрограден
+            'retro': True
         }
     except Exception as e:
         print(f"Ошибка расчёта Лунных узлов: {e}")
-    # === КОНЕЦ БЛОКА УЗЛОВ ===
     
     if abs(lat) > 66.5: house_system = b'W'
     try:
@@ -260,23 +383,13 @@ def calc_transits():
             transits[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg}
         except: continue
     
-    # === ТРАНЗИТЫ ЛУННЫХ УЗЛОВ ===
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
-        transits['Раху'] = {
-            'sign': sign_from_lon(rahu_lon), 
-            'degree': degree_in_sign(rahu_lon), 
-            'lon': rahu_lon
-        }
+        transits['Раху'] = {'sign': sign_from_lon(rahu_lon), 'degree': degree_in_sign(rahu_lon), 'lon': rahu_lon}
         ketu_lon = (rahu_lon + 180) % 360
-        transits['Кету'] = {
-            'sign': sign_from_lon(ketu_lon), 
-            'degree': degree_in_sign(ketu_lon), 
-            'lon': ketu_lon
-        }
+        transits['Кету'] = {'sign': sign_from_lon(ketu_lon), 'degree': degree_in_sign(ketu_lon), 'lon': ketu_lon}
     except Exception as e:
         print(f"Ошибка расчёта транзитов узлов: {e}")
-    # === КОНЕЦ БЛОКА ТРАНЗИТОВ УЗЛОВ ===
     
     return transits
 
@@ -299,7 +412,6 @@ def get_aspects(planets):
 
 def get_aspects_with_angles(natal):
     aspects = []
-    # Включаем узлы в список планет для аспектов
     names = [p for p in natal.keys() if p not in ['houses', 'Асцендент', 'MC', 'Десцендент', 'IC']]
     for i in range(len(names)):
         for j in range(i+1, len(names)):
@@ -334,9 +446,9 @@ def menu_btn():
         [InlineKeyboardButton("📅 Гороскоп", callback_data="daily")]
     ])
 
-# ===== ПРОФЕССИОНАЛЬНАЯ ГРАФИЧЕСКАЯ КАРТА =====
+# ===== ГРАФИЧЕСКАЯ КАРТА =====
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
-    """Профессиональная астрологическая карта с ASC слева (9 часов), DSC справа (3 часа)"""
+    """Профессиональная астрологическая карта с ASC слева (9 часов)"""
     
     fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
     
@@ -361,12 +473,10 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         for sign in data['signs']:
             sign_colors[sign] = data['color']
     
-    # ===== ВАЖНО: СМЕЩЕНИЕ ДЛЯ ASC НА 9 ЧАСОВ (270°) =====
     asc_lon = natal.get('Асцендент', {}).get('lon', 0)
-    # Вычисляем смещение: нам нужно, чтобы ASC был на 90° (9 часов)
     offset = np.radians(90) - np.radians(asc_lon)
     
-    # ===== ПЕРВЫЙ КРУГ: ЗНАКИ ЗОДИАКА (r=1.05-1.20) =====
+    # Знаки зодиака
     for i, sign in enumerate(SIGN_NAMES):
         sign_start = i * 30
         sign_end = sign_start + 30
@@ -387,7 +497,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     
     ax.plot(np.linspace(0, 2*np.pi, 300), [1.05]*300, color='#cccccc', linewidth=1, alpha=0.5)
     
-    # ===== ВТОРОЙ КРУГ: ПЛАНЕТЫ (r=0.90-1.05) =====
+    # Планеты
     theta_bg = np.linspace(0, 2*np.pi, 300)
     ax.fill_between(theta_bg, 0.90, 1.05, color='#fafafa', alpha=0.5)
     ax.plot(np.linspace(0, 2*np.pi, 300), [0.90]*300, color='#cccccc', linewidth=1, alpha=0.5)
@@ -435,7 +545,7 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
                     xy=(angle, r + 0.02), ha='center', va='bottom',
                     fontsize=5.5, color=color, weight='bold')
     
-    # ===== ТРЕТИЙ КРУГ: АСПЕКТЫ (r=0-0.90) =====
+    # Аспекты
     earth = plt.Circle((0, 0), 0.04, color='#1a1a1a', zorder=10)
     ax.add_artist(earth)
     
@@ -460,9 +570,8 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
             ax.plot([ang1, ang2], [r1, r2], color=color, linewidth=lw, 
                     alpha=alpha, linestyle=linestyle, zorder=1)
     
-    # ===== ИСПРАВЛЕНО: КУСПИДЫ ДОМОВ С УЧЁТОМ СМЕЩЕНИЯ =====
+    # Куспиды домов
     for i, house in enumerate(natal.get('houses', [])):
-        # Применяем то же смещение offset к каждому куспиду
         house_lon = house['lon']
         house_angle = np.radians(house_lon) + offset
         
@@ -474,33 +583,25 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         ax.plot([house_angle, house_angle], [0.90, 1.20], color=color, 
                 linewidth=linewidth, alpha=alpha, linestyle='-')
         
-        # Вычисляем середину дома
         next_house = natal['houses'][(i+1) % 12]
         next_house_angle = np.radians(next_house['lon']) + offset
         
-        # Угол между куспидами (учитываем переход через 0°)
         angle_diff = (next_house_angle - house_angle) % (2 * np.pi)
-        mid_angle = house_angle + angle_diff / 2
-        
-        # Нормализуем угол
-        mid_angle = mid_angle % (2 * np.pi)
+        mid_angle = (house_angle + angle_diff / 2) % (2 * np.pi)
         
         sign_name = house['sign']
         sign_deg = house['degree']
         
-        # Подписываем градус и знак на куспиде
         ax.annotate(f"{sign_deg}° {SIGN_EMOJI.get(sign_name, '')}",
                     xy=(house_angle, 1.24), ha='center', va='center',
                     fontsize=5.5, color='#555')
         
-        # Номер дома в середине
         ax.annotate(str(house['house_num']),
                     xy=(mid_angle, 1.30), ha='center', va='center',
                     fontsize=10, color='#1a1a1a', weight='bold',
                     bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
                              edgecolor='#cccccc', alpha=0.9))
         
-        # Подписи угловых домов на куспидах
         if house['house_num'] == 1:
             ax.annotate('ASC', xy=(house_angle, 1.36), ha='center', va='center',
                         fontsize=10, color='#e74c3c', weight='bold')
@@ -559,13 +660,20 @@ async def btn(update, ctx):
         transits = calc_transits(); aspects = get_aspects(natal)
         astro = f"Карта: ☀ {natal['Солнце']['sign']} {natal['Солнце']['degree']}°, 🌙 {natal['Луна']['sign']} {natal['Луна']['degree']}°, ASC {natal['Асцендент']['sign']}, MC {natal['MC']['sign']}\n"
         astro += f"Транзиты: ☀ {transits['Солнце']['sign']}, 🌙 {transits['Луна']['sign']}, ♂ {transits['Марс']['sign']}\n"
-        # Добавляем информацию об узлах
         if 'Раху' in natal and 'Раху' in transits:
             astro += f"Узлы: ☊ Раху в {natal['Раху']['sign']}, транзит в {transits['Раху']['sign']}\n"
         if aspects: astro += f"Аспекты: {', '.join(aspects[:3])}"
         prompt = f"Ты астролог. Прогноз на {period}:\n{astro}\n\n6-8 предложений по сферам: любовь, карьера, здоровье, совет. Учти влияние Лунных узлов Раху и Кету. С эмодзи."
-        forecast = ask_ai(prompt) or f"✨ Прогноз на {period}\n\n❤️ Любовь\n💼 Карьера\n🏃 Здоровье"
-        await update.effective_message.reply_text(f"🌟 *Прогноз на {period}* 🌟\n\n{forecast}", reply_markup=back_btn(), parse_mode='Markdown')
+        forecast = ai_client.ask(prompt)
+        if forecast:
+            parts = ai_client.split_message(forecast)
+            for i, part in enumerate(parts):
+                if i == 0:
+                    await update.effective_message.reply_text(f"🌟 *Прогноз на {period}* 🌟\n\n{part}", reply_markup=back_btn(), parse_mode='Markdown')
+                else:
+                    await update.effective_message.reply_text(part)
+        else:
+            await update.effective_message.reply_text(f"✨ Прогноз на {period}\n\n❤️ Любовь: благоприятный период\n💼 Карьера: новые возможности\n🏃 Здоровье: всё стабильно\n\n🌟 Совет: доверяйте интуиции", reply_markup=back_btn())
     elif d == 'natal':
         if uid not in users: await q.edit_message_text("📝 Введите данные", reply_markup=back_btn()); return
         u = users[uid]
@@ -575,7 +683,6 @@ async def btn(update, ctx):
         aspects = get_aspects(natal)
         
         text = f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d} (местное)\n\n"
-        # Расширенный список планет с узлами
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Уран','Нептун','Плутон','Раху','Кету']:
             if p in natal: 
                 retro = " ℞" if natal[p].get('retro') else ""
@@ -605,7 +712,6 @@ async def btn(update, ctx):
     elif d == 'transits':
         transits = calc_transits()
         text = f"🪐 *Транзиты*\n📅 {datetime.now().strftime('%d.%m.%Y %H:%M')} UTC\n\n"
-        # Добавляем узлы в отображение транзитов
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Раху','Кету']:
             if p in transits: text += f"{SIGN_EMOJI.get(transits[p]['sign'],'')} {p}: *{transits[p]['sign']}* {transits[p]['degree']}°\n"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
@@ -617,7 +723,6 @@ async def btn(update, ctx):
         phases = {0:"🌑 Новолуние",1:"🌒",2:"🌓",3:"🌔",4:"🌕 Полнолуние",5:"🌖",6:"🌗",7:"🌘"}
         text = f"🌙 *Луна*\n\nФаза: {phases.get(phase, '🌑')}\n"
         if 'Луна' in transits: text += f"Знак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
-        # Добавляем информацию об узлах для лунной страницы
         if 'Раху' in transits:
             text += f"\n☊ Раху: *{transits['Раху']['sign']}* {transits['Раху']['degree']}°"
             text += f"\n☋ Кету: *{transits['Кету']['sign']}* {transits['Кету']['degree']}°"
@@ -646,7 +751,7 @@ async def msg(update, ctx):
         parts = t.title().split()
         if len(parts)==2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
             prompt = f"Совместимость {parts[0]} и {parts[1]}. Процент и 2-3 предложения."
-            fc = ask_ai(prompt) or "70% — Хорошая совместимость"
+            fc = ai_client.ask(prompt) or "70% — Хорошая совместимость"
             ctx.user_data['mode'] = ''
             await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💑 Ещё", callback_data="compat"),InlineKeyboardButton("🔙 Меню", callback_data="back")]]), parse_mode='Markdown')
             return
@@ -661,8 +766,17 @@ async def msg(update, ctx):
         elif '.' in t and len(t.split('.')) == 3:
             day, month, year = map(int, t.split('.')); hour, minute = 12, 0; city_str = 'москва'
         else: raise ValueError
+        
+        # Валидация
+        validate_date(day, month, year)
+        validate_time(hour, minute)
+        
         lat, lon, city_name = parse_city(city_str); sign = get_zodiac_sign(day, month)
         users[uid] = {'sign':sign,'day':day,'month':month,'year':year,'hour':hour,'minute':minute,'lat':lat,'lon':lon,'city':city_name}
+        
+        # Сохраняем
+        save_users()
+        
         kb = [[InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
               [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
               [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
@@ -670,8 +784,11 @@ async def msg(update, ctx):
               [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata")],
               [InlineKeyboardButton("🔙 Меню", callback_data="back")]]
         await update.message.reply_text(f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
-    except:
-        await update.message.reply_text("❌ Форматы:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*\n• *15.05.1990 14 30 Нью-Йорк*", reply_markup=back_btn(), parse_mode='Markdown')
+    except ValueError as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*\n• *15.05.1990 14 30 Нью-Йорк*", reply_markup=back_btn(), parse_mode='Markdown')
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        await update.message.reply_text("❌ Произошла ошибка. Попробуйте другой формат:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*", reply_markup=back_btn(), parse_mode='Markdown')
 
 def main():
     app = Application.builder().token(os.getenv('TELEGRAM_TOKEN')).build()
