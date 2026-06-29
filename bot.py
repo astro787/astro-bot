@@ -646,16 +646,7 @@ async def start(update, ctx):
 • 🌙 Лунный календарь
 • 📅 Ежедневный гороскоп
 
-⚙️ *Введите данные:*
-
-📝 *Форматы:*
-• `15.05.1990` — полдень, Москва
-• `15.05.1990 14 30` — Москва
-• `15.05.1990 14 30 Москва`
-
 🌍 100+ городов | 🎯 Математическая точность
-
-Готовы? ⬇️
 """
     await update.message.reply_text(
         welcome_text,
@@ -709,7 +700,18 @@ async def btn(update, ctx):
                   [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
             await q.edit_message_text(f"✨ *{users[uid]['sign']}* ✨\n\nПериод:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         else:
-            await q.edit_message_text("📝 Введите: *ДД.ММ.ГГГГ ЧЧ ММ Город*\nПример: 15.05.1990 14 30 Москва", reply_markup=back_btn(), parse_mode='Markdown')
+            await q.edit_message_text(
+                "🔮 *Прогноз ИИ*\n\n"
+                "Выберите формат ввода:\n\n"
+                "📝 *С временем:* `15.05.1990 14 30 Москва`\n"
+                "📝 *Без времени:* `15.05.1990`",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📝 Ввести с временем", callback_data="newdata")],
+                    [InlineKeyboardButton("📝 Ввести без времени", callback_data="newdata_noon")],
+                    [InlineKeyboardButton("🔙 Назад", callback_data="back")]
+                ]),
+                parse_mode='Markdown'
+            )
     elif d.startswith('f_'):
         if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
@@ -733,7 +735,20 @@ async def btn(update, ctx):
         else:
             await update.effective_message.reply_text(f"✨ Прогноз на {period}\n\n❤️ Любовь: благоприятный период\n💼 Карьера: новые возможности\n🏃 Здоровье: всё стабильно\n\n🌟 Совет: доверяйте интуиции", reply_markup=back_btn())
     elif d == 'natal':
-        if uid not in users: await q.edit_message_text("📝 Введите данные", reply_markup=back_btn()); return
+        if uid not in users: 
+            await q.edit_message_text(
+                "🌟 *Натальная карта*\n\n"
+                "Выберите формат ввода:\n\n"
+                "📝 *С временем:* `15.05.1990 14 30 Москва`\n"
+                "📝 *Без времени:* `15.05.1990`",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📝 Ввести с временем", callback_data="newdata")],
+                    [InlineKeyboardButton("📝 Ввести без времени", callback_data="newdata_noon")],
+                    [InlineKeyboardButton("🔙 Назад", callback_data="back")]
+                ]),
+                parse_mode='Markdown'
+            )
+            return
         u = users[uid]
         await q.message.reply_text("🎨 Рассчитываю и рисую карту...")
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'],
@@ -761,7 +776,18 @@ async def btn(update, ctx):
             parse_mode='Markdown'
         )
     elif d == 'houses':
-        if uid not in users: await q.edit_message_text("📝 Введите данные", reply_markup=back_btn()); return
+        if uid not in users: 
+            await q.edit_message_text(
+                "🏠 *Дома гороскопа*\n\n"
+                "Для расчёта домов нужно точное время рождения.\n\n"
+                "📝 *Формат:* `15.05.1990 14 30 Москва`",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📝 Ввести данные", callback_data="newdata")],
+                    [InlineKeyboardButton("🔙 Назад", callback_data="back")]
+                ]),
+                parse_mode='Markdown'
+            )
+            return
         u = users[uid]; natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         text = f"🏠 *Дома гороскопа*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d} (местное)\n\n"
         for house in natal['houses']: text += f"*{house['house_num']} дом*: {SIGN_EMOJI.get(house['sign'],'')} {house['sign']} {house['degree']}°\n"
@@ -799,14 +825,39 @@ async def btn(update, ctx):
         await help_command(update, ctx)
     elif d == 'newdata':
         ctx.user_data['mode'] = 'newdata'
-        await q.edit_message_text("📝 Введите новые данные:\n*ДД.ММ.ГГГГ ЧЧ ММ Город*\nПример: 15.05.1990 14 30 Москва", reply_markup=back_btn(), parse_mode='Markdown')
+        await q.edit_message_text(
+            "📝 *Введите данные:*\n\n"
+            "*С временем:* `ДД.ММ.ГГГГ ЧЧ ММ Город`\n"
+            "Пример: `15.05.1990 14 30 Москва`",
+            reply_markup=back_btn(),
+            parse_mode='Markdown'
+        )
+    elif d == 'newdata_noon':
+        ctx.user_data['mode'] = 'newdata_noon'
+        await q.edit_message_text(
+            "📝 *Введите дату рождения:*\n\n"
+            "Формат: `ДД.ММ.ГГГГ`\n"
+            "Пример: `15.05.1990`\n\n"
+            "Время будет установлено на 12:00, город — Москва",
+            reply_markup=back_btn(),
+            parse_mode='Markdown'
+        )
+    elif d == 'newdata_natal':
+        ctx.user_data['mode'] = 'newdata'
+        await q.edit_message_text(
+            "📝 *Введите новые данные:*\n\n"
+            "📝 *С временем:* `15.05.1990 14 30 Москва`\n"
+            "📝 *Без времени:* `15.05.1990`",
+            reply_markup=back_btn(),
+            parse_mode='Markdown'
+        )
     elif d == 'back':
         ctx.user_data['mode'] = ''
         await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
 
 async def msg(update, ctx):
     t = update.message.text.strip(); m = ctx.user_data.get('mode',''); uid = update.effective_user.id
-    if m == 'newdata': ctx.user_data['mode'] = ''
+    if m in ['newdata', 'newdata_noon']: ctx.user_data['mode'] = ''
     if m == 'compat':
         parts = t.title().split()
         if len(parts)==2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
@@ -839,7 +890,7 @@ async def msg(update, ctx):
               [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
               [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
               [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
-              [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata")],
+              [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata_natal")],
               [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
         await update.message.reply_text(f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     except ValueError as e:
