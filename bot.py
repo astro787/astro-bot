@@ -15,6 +15,40 @@ from io import BytesIO
 import atexit
 import json
 import time
+import sys
+import os as _os
+
+# ========== ЗАЩИТА ОТ ДВОЙНОГО ЗАПУСКА ==========
+LOCK_FILE = '/tmp/astro_bot.pid'
+
+def check_lock():
+    if _os.path.exists(LOCK_FILE):
+        try:
+            with open(LOCK_FILE, 'r') as f:
+                old_pid = int(f.read().strip())
+            try:
+                _os.kill(old_pid, 0)
+                print(f"❌ Бот уже запущен (PID: {old_pid})! Выходим...")
+                sys.exit(0)
+            except OSError:
+                _os.remove(LOCK_FILE)
+        except:
+            _os.remove(LOCK_FILE)
+    
+    with open(LOCK_FILE, 'w') as f:
+        f.write(str(_os.getpid()))
+    print(f"🔒 Блокировка (PID: {_os.getpid()})")
+
+def remove_lock():
+    try:
+        if _os.path.exists(LOCK_FILE):
+            _os.remove(LOCK_FILE)
+    except:
+        pass
+
+check_lock()
+atexit.register(remove_lock)
+# ========== КОНЕЦ ЗАЩИТЫ ==========
 
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
