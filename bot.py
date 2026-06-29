@@ -17,37 +17,25 @@ import json
 import time
 import sys
 import os as _os
+import socket
 
 # ========== ЗАЩИТА ОТ ДВОЙНОГО ЗАПУСКА ==========
-LOCK_FILE = '/tmp/astro_bot.pid'
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
 
-def check_lock():
-    if _os.path.exists(LOCK_FILE):
-        try:
-            with open(LOCK_FILE, 'r') as f:
-                old_pid = int(f.read().strip())
-            try:
-                _os.kill(old_pid, 0)
-                print(f"❌ Бот уже запущен (PID: {old_pid})! Выходим...")
-                sys.exit(0)
-            except OSError:
-                _os.remove(LOCK_FILE)
-        except:
-            _os.remove(LOCK_FILE)
-    
-    with open(LOCK_FILE, 'w') as f:
-        f.write(str(_os.getpid()))
-    print(f"🔒 Блокировка (PID: {_os.getpid()})")
+if is_port_in_use(9999):
+    print("❌ Бот уже запущен! Выходим...")
+    sys.exit(0)
 
-def remove_lock():
-    try:
-        if _os.path.exists(LOCK_FILE):
-            _os.remove(LOCK_FILE)
-    except:
-        pass
-
-check_lock()
-atexit.register(remove_lock)
+lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try:
+    lock_socket.bind(('localhost', 9999))
+    lock_socket.listen(1)
+    print(f"🔒 Блокировка на порту 9999 (PID: {_os.getpid()})")
+except:
+    print("❌ Не удалось занять порт. Выходим...")
+    sys.exit(0)
 # ========== КОНЕЦ ЗАЩИТЫ ==========
 
 # ========== ВАЛИДАЦИЯ ==========
@@ -85,8 +73,7 @@ class AIClient:
         for attempt in range(self.max_retries):
             try:
                 response = requests.post(
-                    self.api_url,
-                    headers=self.headers,
+                    self.api_url, headers=self.headers,
                     json={"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}},
                     timeout=self.timeout
                 )
@@ -771,18 +758,193 @@ async def btn(update, ctx):
         await q.message.reply_text("🎨 Рассчитываю и рисую карту...")
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         aspects = get_aspects(natal)
-        text = f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d} (местное)\n\n"
-        for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Уран','Нептун','Плутон','Раху','Кету']:
-            if p in natal: 
-                retro = " ℞" if natal[p].get('retro') else ""
-                text += f"{SIGN_EMOJI.get(natal[p]['sign'],'')} {p}: *{natal[p]['sign']}* {natal[p]['degree']}°{retro}\n"
-        if aspects:
-            text += f"\n🔹 *Аспекты:*\n"
-            for a in aspects[:8]: text += f"• {a}\n"
+        
+        asc_sign = natal['Асцендент']['sign']
+        asc_deg = natal['Асцендент']['degree']
+        sun_sign = natal['Солнце']['sign']
+        sun_deg = natal['Солнце']['degree']
+        moon_sign = natal['Луна']['sign']
+        moon_deg = natal['Луна']['degree']
+        mer_sign = natal['Меркурий']['sign']
+        mer_deg = natal['Меркурий']['degree']
+        ven_sign = natal['Венера']['sign']
+        ven_deg = natal['Венера']['degree']
+        mar_sign = natal['Марс']['sign']
+        mar_deg = natal['Марс']['degree']
+        jup_sign = natal['Юпитер']['sign']
+        sat_sign = natal['Сатурн']['sign']
+        ura_sign = natal['Уран']['sign']
+        nep_sign = natal['Нептун']['sign']
+        plu_sign = natal['Плутон']['sign']
+        rahu_sign = natal['Раху']['sign']
+        rahu_deg = natal['Раху']['degree']
+        ketu_sign = natal['Кету']['sign']
+        ketu_deg = natal['Кету']['degree']
+        
+        def get_house(planet_lon, houses):
+            for i, h in enumerate(houses):
+                next_h = houses[(i+1) % 12]
+                if h['lon'] <= next_h['lon']:
+                    if h['lon'] <= planet_lon < next_h['lon']:
+                        return h['house_num']
+                else:
+                    if planet_lon >= h['lon'] or planet_lon < next_h['lon']:
+                        return h['house_num']
+            return 1
+        
+        sun_house = get_house(natal['Солнце']['lon'], natal['houses'])
+        moon_house = get_house(natal['Луна']['lon'], natal['houses'])
+        mer_house = get_house(natal['Меркурий']['lon'], natal['houses'])
+        ven_house = get_house(natal['Венера']['lon'], natal['houses'])
+        mar_house = get_house(natal['Марс']['lon'], natal['houses'])
+        jup_house = get_house(natal['Юпитер']['lon'], natal['houses'])
+        sat_house = get_house(natal['Сатурн']['lon'], natal['houses'])
+        rahu_house = get_house(natal['Раху']['lon'], natal['houses'])
+        ketu_house = get_house(natal['Кету']['lon'], natal['houses'])
+        
+        def get_planet_aspects(planet_name):
+            planet_aspects = []
+            for a in aspects:
+                if planet_name in a:
+                    planet_aspects.append(a)
+            return planet_aspects
+        
+        sun_aspects = get_planet_aspects('Солнце')
+        moon_aspects = get_planet_aspects('Луна')
+        mer_aspects = get_planet_aspects('Меркурий')
+        ven_aspects = get_planet_aspects('Венера')
+        mar_aspects = get_planet_aspects('Марс')
+        
+        asc_ruler = {
+            'Овен': 'Марс', 'Телец': 'Венера', 'Близнецы': 'Меркурий',
+            'Рак': 'Луна', 'Лев': 'Солнце', 'Дева': 'Меркурий',
+            'Весы': 'Венера', 'Скорпион': 'Плутон', 'Стрелец': 'Юпитер',
+            'Козерог': 'Сатурн', 'Водолей': 'Уран', 'Рыбы': 'Нептун',
+        }
+        ruler_name = asc_ruler.get(asc_sign, '')
+        ruler_sign = natal[ruler_name]['sign'] if ruler_name in natal else ''
+        ruler_house = get_house(natal[ruler_name]['lon'], natal['houses']) if ruler_name in natal else ''
+        
+        astro_data = f"""
+*НАТАЛЬНАЯ КАРТА*
+📍 {u['city'].title()} | 🕐 {u['hour']:02d}:{u['minute']:02d}
+
+*1. АСЦЕНДЕНТ:*
+ASC в {asc_sign} {asc_deg}° (1 дом)
+Управитель ASC: {ruler_name} в {ruler_sign} ({ruler_house} дом)
+
+*2. ЛУНА:*
+🌙 в {moon_sign} {moon_deg}° ({moon_house} дом)
+Аспекты Луны: {', '.join(moon_aspects) if moon_aspects else 'нет значимых'}
+
+*3. СОЛНЦЕ:*
+☀ в {sun_sign} {sun_deg}° ({sun_house} дом)
+Аспекты Солнца: {', '.join(sun_aspects) if sun_aspects else 'нет значимых'}
+
+*4. МЕРКУРИЙ:*
+☿ в {mer_sign} {mer_deg}° ({mer_house} дом)
+Аспекты Меркурия: {', '.join(mer_aspects) if mer_aspects else 'нет значимых'}
+
+*5. ВЕНЕРА:*
+♀ в {ven_sign} {ven_deg}° ({ven_house} дом)
+Аспекты Венеры: {', '.join(ven_aspects) if ven_aspects else 'нет значимых'}
+
+*6. МАРС:*
+♂ в {mar_sign} {mar_deg}° ({mar_house} дом)
+Аспекты Марса: {', '.join(mar_aspects) if mar_aspects else 'нет значимых'}
+
+*7. КАРМИЧЕСКИЕ УЗЛЫ:*
+☊ Раху в {rahu_sign} {rahu_deg}° ({rahu_house} дом)
+☋ Кету в {ketu_sign} {ketu_deg}° ({ketu_house} дом)
+
+*Другие планеты:*
+♃ Юпитер в {jup_sign} ({jup_house} дом)
+♄ Сатурн в {sat_sign} ({sat_house} дом)
+♅ Уран в {ura_sign}
+♆ Нептун в {nep_sign}
+♇ Плутон в {plu_sign}
+"""
+        
+        prompt = f"""Ты — профессиональный астролог с 12-летним опытом. Сделай глубокий разбор натальной карты по западной астрологии.
+
+СТРУКТУРА ОТВЕТА (разбей по темам):
+
+🌟 *1. АСЦЕНДЕНТ — как вас воспринимают:*
+Раскрой: как человека воспринимают при первой встрече, какие качества показывать чтобы получать интересные события от Вселенной. Формула успеха через знак ASC и дом управителя ASC.
+
+🌙 *2. ЛУНА — эмоции и потребности:*
+Раскрой: базовые эмоции и потребности, реакции, через что чувствует комфорт и безопасность. Негативные аспекты — источники напряжения. Позитивные аспекты — возможности.
+
+☀ *3. СОЛНЦЕ — самооценка и таланты:*
+Раскрой: в чём особенность и индивидуальность, таланты, как самооценка завязана, что делать для реализации потенциала. Сложности через негативные аспекты.
+
+☿ *4. МЕРКУРИЙ — общение и интеллект:*
+Раскрой: стиль общения, навыки коммуникации, как воспринимает информацию, о чём интересно говорить, область интересов.
+
+♀ *5. ВЕНЕРА — любовь и стиль:*
+Раскрой: как выражает чувства, язык любви, какой в любви, что нравится, как раскрыть женственность, стиль одежды.
+
+♂ *6. МАРС — мотивация и действия:*
+Раскрой: что мотивирует, поведение в кризисе и стрессе, как начать действовать, как ведёт себя в конкуренции.
+
+☊ *7. КАРМИЧЕСКИЕ УЗЛЫ — предназначение:*
+Раскрой: куда двигаться по Северному узлу, какие качества нарабатывать. Что оставить в прошлом по Южному узлу.
+
+ПРАВИЛА:
+- Основывайся ТОЛЬКО на данных карты
+- Пиши развёрнуто, каждый раздел 4-6 предложений
+- Указывай причину: "потому что Марс в Овне..."
+- Используй профессиональные термины с пояснениями
+- Для негативных аспектов давай рекомендации как проработать
+- Для позитивных — как использовать
+
+ДАННЫЕ КАРТЫ:
+{astro_data}
+
+Сделай полный разбор. 30-40 предложений. Используй эмодзи."""
+        
+        forecast = ai_client.ask(prompt, max_tokens=1500)
+        
         birth_time_str = f"{u['hour']:02d}:{u['minute']:02d}"
         img = draw_natal_chart_pro(natal, u['city'], birth_time_str)
         await update.effective_message.reply_photo(photo=img)
-        await update.effective_message.reply_text(text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]]), parse_mode='Markdown')
+        
+        if forecast:
+            parts = ai_client.split_message(forecast)
+            for i, part in enumerate(parts):
+                await update.effective_message.reply_text(
+                    part,
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]]) if i == len(parts)-1 else None,
+                    parse_mode='Markdown'
+                )
+        else:
+            basic_text = f"""🌟 *Натальная карта*
+📍 {u['city'].title()} | 🕐 {u['hour']:02d}:{u['minute']:02d}
+
+*Планеты в знаках:*
+☀ Солнце: *{sun_sign}* {sun_deg}° ({sun_house} дом)
+🌙 Луна: *{moon_sign}* {moon_deg}° ({moon_house} дом)
+☿ Меркурий: *{mer_sign}* {mer_deg}° ({mer_house} дом)
+♀ Венера: *{ven_sign}* {ven_deg}° ({ven_house} дом)
+♂ Марс: *{mar_sign}* {mar_deg}° ({mar_house} дом)
+♃ Юпитер: *{jup_sign}* ({jup_house} дом)
+♄ Сатурн: *{sat_sign}* ({sat_house} дом)
+♅ Уран: *{ura_sign}*
+♆ Нептун: *{nep_sign}*
+♇ Плутон: *{plu_sign}*
+☊ Раху: *{rahu_sign}* ({rahu_house} дом)
+☋ Кету: *{ketu_sign}* ({ketu_house} дом)
+
+⬆ ASC: *{asc_sign}* | Управитель: {ruler_name} в {ruler_sign}
+
+*Аспекты:* {', '.join(aspects[:6]) if aspects else 'нет значимых'}
+
+⚠️ Подробная интерпретация временно недоступна. Попробуйте позже."""
+            await update.effective_message.reply_text(
+                basic_text,
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]]),
+                parse_mode='Markdown'
+            )
     elif d == 'houses':
         if uid not in users: 
             await q.edit_message_text(
