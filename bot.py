@@ -151,6 +151,21 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
 ai_client = AIClient(API_URL, HF_TOKEN)
 
+# ===== KEEP-ALIVE СЕРВЕР =====
+class PingHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+    def log_message(self, format, *args):
+        pass
+
+def run_keepalive():
+    port = int(os.getenv("PORT", 10000))
+    server = HTTPServer(('0.0.0.0', port), PingHandler)
+    print(f"Keep-alive сервер на порту {port}")
+    server.serve_forever()
+
 swe.set_ephe_path(None)
 
 SIGN_NAMES = ['Овен', 'Телец', 'Близнецы', 'Рак', 'Лев', 'Дева',
@@ -769,21 +784,17 @@ async def msg(update, ctx):
 
 def main():
     TOKEN = os.getenv('TELEGRAM_TOKEN')
-    PORT = int(os.getenv('PORT', 10000))
     
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CallbackQueryHandler(btn))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     
-    # Webhook режим — без конфликтов!
-    print(f"🚀 Бот запущен через Webhook на порту {PORT}")
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=TOKEN,
-        webhook_url=f"https://astro-bot-ev3p.onrender.com/{TOKEN}"
-    )
+    # Keep-alive сервер в фоне (для Render)
+    threading.Thread(target=run_keepalive, daemon=True).start()
+    
+    print("🚀 Бот запущен!")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == '__main__':
     main()
