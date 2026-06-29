@@ -15,6 +15,34 @@ from io import BytesIO
 import atexit
 import json
 import time
+import signal
+import subprocess
+
+# ========== ЗАЩИТА ОТ ДВОЙНОГО ЗАПУСКА ==========
+current_pid = os.getpid()
+try:
+    # Найти и убить все старые процессы бота
+    result = subprocess.run(
+        f"pgrep -f 'python.*bot.py' | grep -v {current_pid}",
+        shell=True, capture_output=True, text=True
+    )
+    old_pids = result.stdout.strip().split('\n')
+    
+    for pid in old_pids:
+        if pid and pid.isdigit():
+            try:
+                os.kill(int(pid), signal.SIGKILL)
+                print(f"✅ Убит старый процесс: {pid}")
+            except:
+                pass
+    
+    # Даём время на завершение
+    time.sleep(3)
+except Exception as e:
+    print(f"⚠️ Предупреждение при очистке процессов: {e}")
+
+print(f"🚀 Запуск бота. PID: {current_pid}")
+# ========== КОНЕЦ ЗАЩИТЫ ==========
 
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
