@@ -1,26 +1,13 @@
-import os
-import swisseph as swe
-from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
-from dotenv import load_dotenv
-import requests
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
-from io import BytesIO
-import atexit
-import json
 import time
 import sys
 import os as _os
 import socket
-import asyncio
 
-# ========== ЗАЩИТА ОТ ДВОЙНОГО ЗАПУСКА ==========
+# Ждём, пока старый инстанс точно умрёт
+print("⏳ Ожидание 8с перед стартом для избежания conflict...")
+time.sleep(8)
+
+# Проверяем, не запущен ли уже бот
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('localhost', port)) == 0
@@ -37,7 +24,23 @@ try:
 except:
     print("❌ Не удалось занять порт. Выходим...")
     sys.exit(0)
-# ========== КОНЕЦ ЗАЩИТЫ ==========
+
+import os
+import swisseph as swe
+from datetime import datetime
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from dotenv import load_dotenv
+import requests
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
+from io import BytesIO
+import atexit
+import json
 
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
@@ -693,7 +696,7 @@ async def help_command(update, ctx):
 *Особенности:*
 • ☊ Раху и ☋ Кету — Лунные узлы
 • 🎨 Графическая карта
-• 🤖 AI-прогнозы (DeepSeek + Mistral-7B)
+• 🤖 AI-прогнозы (DeepSeek)
 • 💾 Данные сохраняются
 """
     await update.message.reply_text(help_text, parse_mode='Markdown')
@@ -1133,17 +1136,6 @@ def main():
     app.add_handler(CallbackQueryHandler(btn))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     threading.Thread(target=run_keepalive, daemon=True).start()
-    
-    # Фикс конфликта: принудительно удаляем вебхук перед поллингом
-    async def pre_start():
-        await app.bot.delete_webhook(drop_pending_updates=True)
-        print("🧹 Вебхук удалён, ожидание 3с...")
-        await asyncio.sleep(3)
-    
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(pre_start())
-    
     print("🚀 Бот запущен!")
     app.run_polling(drop_pending_updates=True)
 
