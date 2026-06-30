@@ -18,6 +18,7 @@ import time
 import sys
 import os as _os
 import socket
+import asyncio
 
 # ========== ЗАЩИТА ОТ ДВОЙНОГО ЗАПУСКА ==========
 def is_port_in_use(port):
@@ -61,19 +62,87 @@ def validate_time(hour: int, minute: int):
     return True
 # ========== КОНЕЦ ВАЛИДАЦИИ ==========
 
-# ========== AI КЛИЕНТ ==========
+# ========== AI КЛИЕНТ (DeepSeek + HuggingFace резерв) ==========
 class AIClient:
-    def __init__(self, api_url, token, max_retries=3, timeout=40):
-        self.api_url = api_url
-        self.headers = {"Authorization": f"Bearer {token}"}
-        self.max_retries = max_retries
-        self.timeout = timeout
-    
+    def __init__(self, deepseek_token=None, hf_token=None):
+        self.deepseek_token = deepseek_token
+        self.hf_token = hf_token
+        self.deepseek_url = "https://api.deepseek.com/v1/chat/completions"
+        self.hf_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
+        self.max_retries = 3
+        self.timeout = 40
+
     def ask(self, prompt, max_tokens=400):
+        # 1. Пробуем DeepSeek
+        if self.deepseek_token:
+            print("🔍 DEEPSEEK_TOKEN: ✅ найден, пробую DeepSeek...")
+            result = self._ask_deepseek(prompt, max_tokens)
+            if result:
+                return result
+            print("⚠️ DeepSeek не ответил, переключаюсь на HuggingFace...")
+        else:
+            print("🔍 DEEPSEEK_TOKEN: ❌ НЕ НАЙДЕН")
+
+        # 2. Резерв: HuggingFace
+        if self.hf_token:
+            print("🔄 Пробую HuggingFace...")
+            return self._ask_huggingface(prompt, max_tokens)
+
+        print("❌ Нет доступных AI-моделей")
+        return None
+
+    def _ask_deepseek(self, prompt, max_tokens):
+        headers = {
+            "Authorization": f"Bearer {self.deepseek_token}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "system", "content": "Ты — профессиональный астролог с 12-летним опытом."},
+                {"role": "user", "content": prompt}
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.7
+        }
         for attempt in range(self.max_retries):
             try:
                 response = requests.post(
-                    self.api_url, headers=self.headers,
+                    self.deepseek_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    text = data["choices"][0]["message"]["content"].strip()
+                    if text and len(text) > 10:
+                        print(f"✅ DeepSeek ответил: {len(text)} символов")
+                        return text
+                elif response.status_code == 429:
+                    wait = 20 * (attempt + 1)
+                    print(f"⏳ DeepSeek rate limit, ждём {wait}с...")
+                    time.sleep(wait)
+                else:
+                    print(f"❌ DeepSeek ошибка API: {response.status_code} - {response.text[:200]}")
+                    if attempt < self.max_retries - 1:
+                        time.sleep(5)
+            except requests.Timeout:
+                print(f"⏱ DeepSeek таймаут (попытка {attempt+1}/{self.max_retries})")
+                if attempt < self.max_retries - 1:
+                    time.sleep(5)
+            except Exception as e:
+                print(f"❌ DeepSeek ошибка: {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(5)
+        return None
+
+    def _ask_huggingface(self, prompt, max_tokens):
+        headers = {"Authorization": f"Bearer {self.hf_token}"}
+        for attempt in range(self.max_retries):
+            try:
+                response = requests.post(
+                    self.hf_url, headers=headers,
                     json={"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}},
                     timeout=self.timeout
                 )
@@ -82,31 +151,31 @@ class AIClient:
                     if isinstance(data, list) and data:
                         text = data[0].get("generated_text", "").strip()
                         if text and len(text) > 10:
-                            print(f"✅ AI ответ: {len(text)} символов")
+                            print(f"✅ HF ответ: {len(text)} символов")
                             return text
                 elif response.status_code == 503:
                     wait = 10 * (attempt + 1)
-                    print(f"⏳ Модель загружается, ждём {wait}с...")
+                    print(f"⏳ HF модель загружается, ждём {wait}с...")
                     time.sleep(wait)
                 elif response.status_code == 429:
                     wait = 20 * (attempt + 1)
-                    print(f"⏳ Rate limit, ждём {wait}с...")
+                    print(f"⏳ HF rate limit, ждём {wait}с...")
                     time.sleep(wait)
                 else:
-                    print(f"❌ Ошибка API: {response.status_code}")
+                    print(f"❌ HF ошибка API: {response.status_code}")
                     if attempt < self.max_retries - 1:
                         time.sleep(5)
             except requests.Timeout:
-                print(f"⏱ Таймаут (попытка {attempt+1}/{self.max_retries})")
+                print(f"⏱ HF таймаут (попытка {attempt+1}/{self.max_retries})")
                 if attempt < self.max_retries - 1:
                     time.sleep(5)
             except Exception as e:
-                print(f"❌ Ошибка: {e}")
+                print(f"❌ HF ошибка: {e}")
                 if attempt < self.max_retries - 1:
                     time.sleep(5)
-        print("❌ Все попытки исчерпаны")
+        print("❌ HF все попытки исчерпаны")
         return None
-    
+
     @staticmethod
     def split_message(text, max_length=4000):
         parts = []
@@ -156,9 +225,10 @@ def load_users():
 
 load_dotenv()
 
+# Инициализация AI клиента с DeepSeek основным и HF резервным
+DEEPSEEK_TOKEN = os.getenv("DEEPSEEK_TOKEN")
 HF_TOKEN = os.getenv("HF_TOKEN")
-API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
-ai_client = AIClient(API_URL, HF_TOKEN)
+ai_client = AIClient(deepseek_token=DEEPSEEK_TOKEN, hf_token=HF_TOKEN)
 
 # ===== KEEP-ALIVE СЕРВЕР =====
 class PingHandler(BaseHTTPRequestHandler):
@@ -623,7 +693,7 @@ async def help_command(update, ctx):
 *Особенности:*
 • ☊ Раху и ☋ Кету — Лунные узлы
 • 🎨 Графическая карта
-• 🤖 AI-прогнозы (Mistral-7B)
+• 🤖 AI-прогнозы (DeepSeek + Mistral-7B)
 • 💾 Данные сохраняются
 """
     await update.message.reply_text(help_text, parse_mode='Markdown')
@@ -1063,6 +1133,17 @@ def main():
     app.add_handler(CallbackQueryHandler(btn))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     threading.Thread(target=run_keepalive, daemon=True).start()
+    
+    # Фикс конфликта: принудительно удаляем вебхук перед поллингом
+    async def pre_start():
+        await app.bot.delete_webhook(drop_pending_updates=True)
+        print("🧹 Вебхук удалён, ожидание 3с...")
+        await asyncio.sleep(3)
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(pre_start())
+    
     print("🚀 Бот запущен!")
     app.run_polling(drop_pending_updates=True)
 
