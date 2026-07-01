@@ -877,8 +877,13 @@ async def btn(update, ctx):
         now = get_current_time()
         
         # Правильные подписи для разных периодов
-        period_labels = {'day': 'сегодня', 'week': 'неделю', 'month': 'месяц'}
-        await q.message.reply_text(f"🔮 Рассчитываю прогноз на {period_labels.get(period, period)}...")
+        if period == 'month':
+            label = 'месяц'
+        elif period == 'week':
+            label = 'неделю'
+        else:
+            label = 'сегодня'
+        await q.message.reply_text(f"🔮 Рассчитываю прогноз на {label}...")
         
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         transits = calc_transits(); aspects = get_aspects(natal)
@@ -924,7 +929,32 @@ async def btn(update, ctx):
         else:
             aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
         
-        prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на {period} на основе ТОЧНЫХ математических аспектов.
+        # Разные промпты и лимиты для разных периодов
+        if period == 'month':
+            prompt = f"""Ты — профессиональный астролог. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на месяц на основе ТОЧНЫХ математических аспектов.
+
+📅 ДАТА: {now.strftime('%d.%m.%Y')}
+
+ПРАВИЛА:
+1. Основывайся ТОЛЬКО на аспектах
+2. Указывай конкретный аспект для каждого утверждения
+3. Сходящийся = впереди, расходящийся = прошло
+
+СТРУКТУРА:
+❤️ ЛЮБОВЬ (4 предложения)
+💼 КАРЬЕРА (4 предложения)
+🏃 ЭНЕРГИЯ (3 предложения)
+🌟 СОВЕТ НА МЕСЯЦ (3 предложения)
+
+ДАННЫЕ:
+{astro}
+
+{aspects_text}
+
+Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай."""
+            max_tok = 2500
+        else:
+            prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на {period} на основе ТОЧНЫХ математических аспектов.
 
 📅 ДАТА ПРОГНОЗА: {now.strftime('%d.%m.%Y')}
 
@@ -959,24 +989,31 @@ async def btn(update, ctx):
 {aspects_text}
 
 Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай текст на полуслове. Указывай градусы и направление аспектов."""
+            max_tok = 1200 if period == 'week' else 700
         
-        # Разные лимиты токенов для разных периодов
-        token_limits = {'day': 700, 'week': 1000, 'month': 1500}
-        max_tok = token_limits.get(period, 700)
         forecast = ai_client.ask(prompt, max_tokens=max_tok)
         
         if forecast:
             parts = ai_client.split_message(forecast)
-            period_title = {'day': 'сегодня', 'week': 'неделю', 'month': 'месяц'}
+            if period == 'month':
+                ptitle = 'месяц'
+            elif period == 'week':
+                ptitle = 'неделю'
+            else:
+                ptitle = 'сегодня'
             for i, part in enumerate(parts):
                 if i == 0:
-                    await update.effective_message.reply_text(f"🌟 *Прогноз на {period_title.get(period, period)}* 🌟\n\n{part}", reply_markup=back_btn(), parse_mode='Markdown')
+                    await update.effective_message.reply_text(f"🌟 *Прогноз на {ptitle}* 🌟\n\n{part}", reply_markup=back_btn(), parse_mode='Markdown')
                 else:
                     await update.effective_message.reply_text(part)
         else:
-            # Резервная интерпретация с использованием точных аспектов
-            period_title_fallback = {'day': f'сегодня ({now.strftime("%d.%m.%Y")})', 'week': 'неделю', 'month': 'месяц'}
-            fallback = f"""🌟 *Прогноз на {period_title_fallback.get(period, period)}*
+            if period == 'month':
+                ptitle = 'месяц'
+            elif period == 'week':
+                ptitle = 'неделю'
+            else:
+                ptitle = f'сегодня ({now.strftime("%d.%m.%Y")})'
+            fallback = f"""🌟 *Прогноз на {ptitle}*
 
 """
             if transit_aspects_data:
