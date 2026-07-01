@@ -442,8 +442,26 @@ def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62,
         natal['houses'].append({'house_num': i+1, 'sign': sign_from_lon(houses[i]), 'degree': degree_in_sign(houses[i]), 'lon': houses[i]})
     return natal
 
-def calc_transits():
+def get_current_time():
+    """Получает точное текущее время через API, с запасным вариантом"""
+    try:
+        resp = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            now = datetime.fromisoformat(data['datetime'].replace('Z', '+00:00'))
+            now = now.replace(tzinfo=None)
+            print(f"🕐 Точное время получено: {now.strftime('%d.%m.%Y %H:%M:%S')}")
+            return now
+    except Exception as e:
+        print(f"⚠️ Не удалось получить точное время: {e}")
+    
+    # Запасной вариант — системное время
     now = datetime.utcnow()
+    print(f"🕐 Использую системное время: {now.strftime('%d.%m.%Y %H:%M:%S')}")
+    return now
+
+def calc_transits():
+    now = get_current_time()
     jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute/60.0)
     transits = {}
     for name, pid in PLANETS.items():
@@ -705,6 +723,10 @@ async def logtest(update, ctx):
     """Тестовая команда для проверки токенов и связи с DeepSeek API"""
     await update.message.reply_text("🔍 Запускаю диагностику...")
     
+    # Проверка времени
+    now = get_current_time()
+    await update.message.reply_text(f"🕐 Текущее время сервера: {now.strftime('%d.%m.%Y %H:%M:%S')} UTC")
+    
     # Проверка DEEPSEEK_TOKEN
     token = os.getenv("DEEPSEEK_TOKEN")
     if token:
@@ -758,6 +780,12 @@ async def logtest(update, ctx):
 
 async def btn(update, ctx):
     q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
+    
+    # Для прогнозов всегда показываем актуальное время
+    if d.startswith('f_'):
+        now = get_current_time()
+        print(f"📅 Прогноз запрошен: {now.strftime('%d.%m.%Y %H:%M:%S')} UTC")
+    
     if d == 'forecast':
         if uid in users:
             ctx.user_data['mode'] = 'fp'
@@ -780,7 +808,8 @@ async def btn(update, ctx):
     elif d.startswith('f_'):
         if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
-        await q.message.reply_text("🔮 Рассчитываю и генерирую прогноз...")
+        now = get_current_time()
+        await q.message.reply_text(f"🔮 Рассчитываю прогноз на {now.strftime('%d.%m.%Y')}...")
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         transits = calc_transits(); aspects = get_aspects(natal)
         sun_sign = natal['Солнце']['sign']; moon_sign = natal['Луна']['sign']; asc_sign = natal['Асцендент']['sign']
@@ -807,14 +836,14 @@ async def btn(update, ctx):
                 elif abs(diff-120) <= 3: transit_aspects.append(f"△ {t_name} транзит в тригоне к {n_name}")
                 elif abs(diff-180) <= 3: transit_aspects.append(f"☍ {t_name} транзит в оппозиции к {n_name}")
         astro = f"""
-*Астрологические данные:*
+*Астрологические данные на {now.strftime('%d.%m.%Y')}:*
 
 ☀ Солнце в {sun_sign} {natal['Солнце']['degree']}°
 🌙 Луна в {moon_sign} {natal['Луна']['degree']}° (в {moon_house if moon_house else '?'} доме)
 ⬆ ASC в {asc_sign}
 🔥 Доминирующая стихия: {dominant}
 
-*Транзиты:*
+*Транзиты сейчас:*
 ☀ {transits['Солнце']['sign']} | 🌙 {transits['Луна']['sign']} | ☿ {transits['Меркурий']['sign']}
 ♀ {transits['Венера']['sign']} | ♂ {transits['Марс']['sign']} | ♃ {transits['Юпитер']['sign']}
 ♄ {transits['Сатурн']['sign']} | ☊ {transits['Раху']['sign']} | ☋ {transits['Кету']['sign']}
@@ -824,7 +853,7 @@ async def btn(update, ctx):
         if transit_aspects:
             astro += f"\n*Транзитные аспекты к натальной карте:*\n"
             for ta in transit_aspects[:5]: astro += f"• {ta}\n"
-        prompt = f"""Ты — профессиональный астролог с 12-летним опытом консультирования. Твоя специализация: точные прогнозы по транзитам и натальной карте.
+        prompt = f"""Сегодня {now.strftime('%d.%m.%Y')}. Ты — профессиональный астролог с 12-летним опытом консультирования. Твоя специализация: точные прогнозы по транзитам и натальной карте.
 
 ВАЖНЫЕ ПРАВИЛА:
 1. Основывайся ТОЛЬКО на предоставленных астро-данных
@@ -839,7 +868,7 @@ async def btn(update, ctx):
    🏃 Здоровье и энергия (2-3 предложения с астро-обоснованием)
    🌟 Главный совет на {period} (1-2 предложения)
 
-АСТРО-ДАННЫЕ ДЛЯ ПРОГНОЗА НА {period.upper()}:
+АСТРО-ДАННЫЕ ДЛЯ ПРОГНОЗА НА {period.upper()} ({now.strftime('%d.%m.%Y')}):
 {astro}
 
 Дай развёрнутый прогноз. 12-16 предложений. Используй эмодзи."""
@@ -855,7 +884,7 @@ async def btn(update, ctx):
             love_text = {'Овен': 'время страсти и новых знакомств', 'Телец': 'время чувственности и стабильности', 'Близнецы': 'время общения и флирта', 'Рак': 'время глубоких эмоций и заботы', 'Лев': 'время романтики и внимания', 'Дева': 'время практичности в отношениях', 'Весы': 'время гармонии и партнёрства', 'Скорпион': 'время страсти и трансформации', 'Стрелец': 'время приключений и свободы', 'Козерог': 'время серьёзных решений', 'Водолей': 'время необычных знакомств', 'Рыбы': 'время романтики и вдохновения'}
             career_text = {'Овен': 'проявите инициативу, вас заметят', 'Телец': 'сосредоточьтесь на финансах', 'Близнецы': 'делитесь идеями, налаживайте связи', 'Рак': 'работайте в комфортном темпе', 'Лев': 'берите лидерство, вас поддержат', 'Дева': 'время анализа и планирования', 'Весы': 'ищите баланс и партнёрство', 'Скорпион': 'копайте глубже, найдёте скрытое', 'Стрелец': 'расширяйте горизонты, учитесь', 'Козерог': 'стройте долгосрочные планы', 'Водолей': 'внедряйте инновации', 'Рыбы': 'доверьтесь интуиции в делах'}
             health_text = {'Огонь': 'много энергии, займитесь спортом', 'Земля': 'стабильное состояние, держите режим', 'Воздух': 'берегите нервную систему', 'Вода': 'больше отдыхайте, возможна усталость'}
-            fallback = f"""🌟 *Прогноз на {period}*
+            fallback = f"""🌟 *Прогноз на {period}* ({now.strftime('%d.%m.%Y')})
 
 ❤️ *Любовь:* {love_text.get(transits['Венера']['sign'], 'благоприятный период')} — Венера в {transits['Венера']['sign']} способствует этому.
 
@@ -1093,7 +1122,8 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'transits':
         transits = calc_transits()
-        text = f"🪐 *Транзиты*\n📅 {datetime.now().strftime('%d.%m.%Y %H:%M')} UTC\n\n"
+        now = get_current_time()
+        text = f"🪐 *Транзиты*\n📅 {now.strftime('%d.%m.%Y %H:%M')} UTC\n\n"
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Раху','Кету']:
             if p in transits: text += f"{SIGN_EMOJI.get(transits[p]['sign'],'')} {p}: *{transits[p]['sign']}* {transits[p]['degree']}°\n"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
@@ -1101,16 +1131,20 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
         ctx.user_data['mode'] = 'compat'
         await q.edit_message_text("💑 Два знака: *Овен Телец*", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'moon':
-        transits = calc_transits(); phase = datetime.now().day % 8
+        transits = calc_transits()
+        now = get_current_time()
+        phase = now.day % 8
         phases = {0:"🌑 Новолуние",1:"🌒",2:"🌓",3:"🌔",4:"🌕 Полнолуние",5:"🌖",6:"🌗",7:"🌘"}
-        text = f"🌙 *Луна*\n\nФаза: {phases.get(phase, '🌑')}\n"
+        text = f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phases.get(phase, '🌑')}\n"
         if 'Луна' in transits: text += f"Знак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
         if 'Раху' in transits:
             text += f"\n☊ Раху: *{transits['Раху']['sign']}* {transits['Раху']['degree']}°"
             text += f"\n☋ Кету: *{transits['Кету']['sign']}* {transits['Кету']['degree']}°"
         await q.edit_message_text(text, reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'daily':
-        text = "📅 *Сегодня*\n\n"; transits = calc_transits()
+        now = get_current_time()
+        text = f"📅 *Сегодня* ({now.strftime('%d.%m.%Y')})\n\n"
+        transits = calc_transits()
         for sign in SIGN_NAMES:
             text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
             if 'Солнце' in transits and sign == transits['Солнце']['sign']: text += "☀️ Солнце в знаке!\n"
