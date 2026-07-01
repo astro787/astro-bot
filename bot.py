@@ -875,7 +875,11 @@ async def btn(update, ctx):
         if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         now = get_current_time()
-        await q.message.reply_text(f"🔮 Рассчитываю прогноз на {now.strftime('%d.%m.%Y')}...")
+        
+        # Правильные подписи для разных периодов
+        period_labels = {'day': 'сегодня', 'week': 'неделю', 'month': 'месяц'}
+        await q.message.reply_text(f"🔮 Рассчитываю прогноз на {period_labels.get(period, period)}...")
+        
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         transits = calc_transits(); aspects = get_aspects(natal)
         sun_sign = natal['Солнце']['sign']; moon_sign = natal['Луна']['sign']; asc_sign = natal['Асцендент']['sign']
@@ -954,19 +958,25 @@ async def btn(update, ctx):
 
 {aspects_text}
 
-Дай прогноз. 15-20 предложений. Указывай градусы и направление аспектов."""
+Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай текст на полуслове. Указывай градусы и направление аспектов."""
         
-        forecast = ai_client.ask(prompt, max_tokens=700)
+        # Разные лимиты токенов для разных периодов
+        token_limits = {'day': 700, 'week': 1000, 'month': 1500}
+        max_tok = token_limits.get(period, 700)
+        forecast = ai_client.ask(prompt, max_tokens=max_tok)
+        
         if forecast:
             parts = ai_client.split_message(forecast)
+            period_title = {'day': 'сегодня', 'week': 'неделю', 'month': 'месяц'}
             for i, part in enumerate(parts):
                 if i == 0:
-                    await update.effective_message.reply_text(f"🌟 *Прогноз на {period}* 🌟\n\n{part}", reply_markup=back_btn(), parse_mode='Markdown')
+                    await update.effective_message.reply_text(f"🌟 *Прогноз на {period_title.get(period, period)}* 🌟\n\n{part}", reply_markup=back_btn(), parse_mode='Markdown')
                 else:
                     await update.effective_message.reply_text(part)
         else:
             # Резервная интерпретация с использованием точных аспектов
-            fallback = f"""🌟 *Прогноз на {period}* ({now.strftime('%d.%m.%Y')})
+            period_title_fallback = {'day': f'сегодня ({now.strftime("%d.%m.%Y")})', 'week': 'неделю', 'month': 'месяц'}
+            fallback = f"""🌟 *Прогноз на {period_title_fallback.get(period, period)}*
 
 """
             if transit_aspects_data:
