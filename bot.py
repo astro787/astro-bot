@@ -76,7 +76,6 @@ class AIClient:
         self.timeout = 40
 
     def ask(self, prompt, max_tokens=400):
-        # 1. Пробуем DeepSeek
         if self.deepseek_token:
             print("🔍 DEEPSEEK_TOKEN: ✅ найден, пробую DeepSeek...")
             result = self._ask_deepseek(prompt, max_tokens)
@@ -86,7 +85,6 @@ class AIClient:
         else:
             print("🔍 DEEPSEEK_TOKEN: ❌ НЕ НАЙДЕН")
 
-        # 2. Резерв: HuggingFace
         if self.hf_token:
             print("🔄 Пробую HuggingFace...")
             return self._ask_huggingface(prompt, max_tokens)
@@ -228,7 +226,6 @@ def load_users():
 
 load_dotenv()
 
-# Инициализация AI клиента с DeepSeek основным и HF резервным
 DEEPSEEK_TOKEN = os.getenv("DEEPSEEK_TOKEN")
 HF_TOKEN = os.getenv("HF_TOKEN")
 ai_client = AIClient(deepseek_token=DEEPSEEK_TOKEN, hf_token=HF_TOKEN)
@@ -443,7 +440,6 @@ def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62,
     return natal
 
 def get_current_time():
-    """Получает точное текущее время через API, с запасным вариантом"""
     try:
         resp = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC", timeout=5)
         if resp.status_code == 200:
@@ -512,10 +508,6 @@ def get_aspects_with_angles(natal):
     return aspects
 
 def calc_transit_aspects(natal, transits, orb=2.0):
-    """
-    Рассчитывает точные аспекты между транзитными и натальными планетами.
-    Возвращает список с детальной информацией.
-    """
     aspects = []
     aspect_meanings = {
         'соединение': {'символ': '☌', 'влияние': 'усиление, новые начинания', 'орбис': 8},
@@ -562,7 +554,6 @@ def calc_transit_aspects(natal, transits, orb=2.0):
                         'transit_house': None
                     })
     
-    # Определяем дома для транзитных планет
     for asp in aspects:
         t_name = asp['transit_planet']
         t_lon = transits[t_name]['lon']
@@ -577,7 +568,6 @@ def calc_transit_aspects(natal, transits, orb=2.0):
                     asp['transit_house'] = h['house_num']
                     break
     
-    # Сортируем по важности: точные аспекты первые
     aspects.sort(key=lambda x: x['deviation'])
     return aspects
 
@@ -791,7 +781,6 @@ async def help_command(update, ctx):
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
 async def logtest(update, ctx):
-    """Тестовая команда для проверки токенов и связи с DeepSeek API"""
     await update.message.reply_text("🔍 Запускаю диагностику...")
     
     now = get_current_time()
@@ -876,13 +865,18 @@ async def btn(update, ctx):
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         now = get_current_time()
         
-        # Правильные подписи для разных периодов
-        if period == 'month':
+        # ПРИНУДИТЕЛЬНАЯ установка подписей через прямую проверку d
+        if d == 'f_month':
             label = 'месяц'
-        elif period == 'week':
+            ptitle = 'месяц'
+        elif d == 'f_week':
             label = 'неделю'
+            ptitle = 'неделю'
         else:
             label = 'сегодня'
+            ptitle = 'сегодня'
+        
+        print(f"DEBUG: d={d}, label={label}, ptitle={ptitle}")
         await q.message.reply_text(f"🔮 Рассчитываю прогноз на {label}...")
         
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
@@ -899,7 +893,6 @@ async def btn(update, ctx):
                 if elem: elements_count[elem] += 1
         dominant = max(elements_count, key=elements_count.get)
         
-        # Рассчитываем точные транзитные аспекты
         transit_aspects_data = calc_transit_aspects(natal, transits)
         
         astro = f"""
@@ -918,7 +911,6 @@ async def btn(update, ctx):
 *Натальные аспекты:* {', '.join(aspects[:4]) if aspects else 'нет значимых'}
 """
         
-        # Формируем детальное описание точных аспектов
         aspects_text = ""
         if transit_aspects_data:
             aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
@@ -929,16 +921,13 @@ async def btn(update, ctx):
         else:
             aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
         
-        # Разные промпты и лимиты для разных периодов
-        if period == 'month':
-            prompt = f"""Ты — профессиональный астролог. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на месяц на основе ТОЧНЫХ математических аспектов.
+        # Короткий промпт для месяца
+        if d == 'f_month':
+            prompt = f"""Ты — астролог. Прогноз на МЕСЯЦ на основе точных аспектов.
 
-📅 ДАТА: {now.strftime('%d.%m.%Y')}
+📅 {now.strftime('%d.%m.%Y')}
 
-ПРАВИЛА:
-1. Основывайся ТОЛЬКО на аспектах
-2. Указывай конкретный аспект для каждого утверждения
-3. Сходящийся = впереди, расходящийся = прошло
+ПРАВИЛА: Основывайся ТОЛЬКО на аспектах. Сходящийся = впереди, расходящийся = прошло.
 
 СТРУКТУРА:
 ❤️ ЛЮБОВЬ (4 предложения)
@@ -948,7 +937,6 @@ async def btn(update, ctx):
 
 ДАННЫЕ:
 {astro}
-
 {aspects_text}
 
 Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай."""
@@ -960,28 +948,15 @@ async def btn(update, ctx):
 
 ⚠️ ВАЖНЕЙШИЕ ПРАВИЛА:
 1. Основывай прогноз СТРОГО на предоставленных аспектах
-2. Для КАЖДОГО утверждения указывай КОНКРЕТНЫЙ аспект: "потому что транзитный Марс в точном квадрате (90°) к вашему натальному Солнцу..."
-3. Учитывай, сходящийся аспект или расходящийся:
-   - Сходящийся (усиливается) = событие/тенденция впереди, нарастает
-   - Расходящийся (ослабевает) = событие/тенденция уже прошло пик
-4. Для каждого аспекта учитывай ДОМА — они показывают СФЕРУ ЖИЗНИ
-5. Не пиши общих фраз вроде "будьте осторожны" без привязки к аспекту
+2. Для КАЖДОГО утверждения указывай КОНКРЕТНЫЙ аспект
+3. Сходящийся = событие впереди, расходящийся = прошло пик
+4. Учитывай ДОМА — они показывают СФЕРУ ЖИЗНИ
 
 СТРУКТУРА ОТВЕТА:
 ❤️ ЛЮБОВЬ И ОТНОШЕНИЯ (3-4 предложения)
-- Какие аспекты влияют: укажи конкретные транзиты к Венере, Луне, управителю 7 дома
-- Прогноз: что произойдёт в ближайший {period}
-
 💼 КАРЬЕРА И ФИНАНСЫ (3-4 предложения)
-- Какие аспекты влияют: укажи конкретные транзиты к Меркурию, Сатурну, Юпитеру
-- Прогноз: какие действия принесут результат
-
 🏃 ЭНЕРГИЯ И ЗДОРОВЬЕ (2-3 предложения)
-- Какие аспекты влияют: укажи транзиты к Марсу, Солнцу
-- Прогноз: уровень энергии и рекомендации
-
 🌟 ГЛАВНЫЙ СОВЕТ НА {period.upper()} (2-3 предложения)
-- Самый важный аспект {period[:4]} и как его использовать
 
 АСТРО-ДАННЫЕ:
 {astro}
@@ -989,31 +964,23 @@ async def btn(update, ctx):
 {aspects_text}
 
 Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай текст на полуслове. Указывай градусы и направление аспектов."""
-            max_tok = 1200 if period == 'week' else 700
+            max_tok = 1200 if d == 'f_week' else 700
         
         forecast = ai_client.ask(prompt, max_tokens=max_tok)
         
         if forecast:
             parts = ai_client.split_message(forecast)
-            if period == 'month':
-                ptitle = 'месяц'
-            elif period == 'week':
-                ptitle = 'неделю'
-            else:
-                ptitle = 'сегодня'
             for i, part in enumerate(parts):
                 if i == 0:
                     await update.effective_message.reply_text(f"🌟 *Прогноз на {ptitle}* 🌟\n\n{part}", reply_markup=back_btn(), parse_mode='Markdown')
                 else:
                     await update.effective_message.reply_text(part)
         else:
-            if period == 'month':
-                ptitle = 'месяц'
-            elif period == 'week':
-                ptitle = 'неделю'
+            if d == 'f_day':
+                ptitle_fb = f'сегодня ({now.strftime("%d.%m.%Y")})'
             else:
-                ptitle = f'сегодня ({now.strftime("%d.%m.%Y")})'
-            fallback = f"""🌟 *Прогноз на {ptitle}*
+                ptitle_fb = ptitle
+            fallback = f"""🌟 *Прогноз на {ptitle_fb}*
 
 """
             if transit_aspects_data:
