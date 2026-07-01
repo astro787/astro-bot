@@ -102,7 +102,7 @@ class AIClient:
         payload = {
             "model": "deepseek-chat",
             "messages": [
-                {"role": "system", "content": "Ты — профессиональный астролог с 12-летним опытом."},
+                {"role": "system", "content": "Ты — профессиональный астролог с 25-летним опытом."},
                 {"role": "user", "content": prompt}
             ],
             "max_tokens": max_tokens,
@@ -455,7 +455,6 @@ def get_current_time():
     except Exception as e:
         print(f"⚠️ Не удалось получить точное время: {e}")
     
-    # Запасной вариант — системное время
     now = datetime.utcnow()
     print(f"🕐 Использую системное время: {now.strftime('%d.%m.%Y %H:%M:%S')}")
     return now
@@ -510,6 +509,76 @@ def get_aspects_with_angles(natal):
             elif abs(diff-120) <= 6: asp = 'тригон'
             elif abs(diff-180) <= 6: asp = 'оппозиция'
             if asp: aspects.append((names[i], names[j], asp, diff))
+    return aspects
+
+def calc_transit_aspects(natal, transits, orb=2.0):
+    """
+    Рассчитывает точные аспекты между транзитными и натальными планетами.
+    Возвращает список с детальной информацией.
+    """
+    aspects = []
+    aspect_meanings = {
+        'соединение': {'символ': '☌', 'влияние': 'усиление, новые начинания', 'орбис': 8},
+        'оппозиция': {'символ': '☍', 'влияние': 'напряжение, осознание', 'орбис': 8},
+        'тригон': {'символ': '△', 'влияние': 'гармония, возможности', 'орбис': 8},
+        'квадрат': {'символ': '□', 'влияние': 'вызов, действие', 'орбис': 7},
+        'секстиль': {'символ': '⚹', 'влияние': 'благоприятные шансы', 'орбис': 5},
+    }
+    
+    for t_name, t_data in transits.items():
+        if t_name in ['Раху', 'Кету']:
+            continue
+        for n_name, n_data in natal.items():
+            if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']:
+                continue
+            
+            diff = abs(t_data['lon'] - n_data['lon']) % 360
+            if diff > 180:
+                diff = 360 - diff
+            
+            for asp_name, asp_info in aspect_meanings.items():
+                ideal_angle = {'соединение': 0, 'оппозиция': 180, 'тригон': 120, 'квадрат': 90, 'секстиль': 60}[asp_name]
+                deviation = abs(diff - ideal_angle)
+                
+                if deviation <= asp_info['орбис']:
+                    if deviation < orb:
+                        direction = "сходящийся (усиливается)"
+                    elif deviation < 0.5:
+                        direction = "точный"
+                    else:
+                        direction = "расходящийся (ослабевает)"
+                    
+                    aspects.append({
+                        'transit_planet': t_name,
+                        'transit_sign': t_data['sign'],
+                        'natal_planet': n_name,
+                        'natal_sign': n_data['sign'],
+                        'aspect': asp_name,
+                        'symbol': asp_info['символ'],
+                        'angle': round(diff, 1),
+                        'deviation': round(deviation, 1),
+                        'direction': direction,
+                        'influence': asp_info['влияние'],
+                        'transit_house': None
+                    })
+    
+    # Определяем дома для транзитных планет
+    for asp in aspects:
+        t_name = asp['transit_planet']
+        t_lon = transits[t_name]['lon']
+        for i, h in enumerate(natal['houses']):
+            next_h = natal['houses'][(i + 1) % 12]
+            if h['lon'] <= next_h['lon']:
+                if h['lon'] <= t_lon < next_h['lon']:
+                    asp['transit_house'] = h['house_num']
+                    break
+            else:
+                if t_lon >= h['lon'] or t_lon < next_h['lon']:
+                    asp['transit_house'] = h['house_num']
+                    break
+    
+    # Сортируем по важности: точные аспекты первые
+    aspects.sort(key=lambda x: x['deviation'])
     return aspects
 
 def parse_city(city_str):
@@ -673,6 +742,7 @@ async def start(update, ctx):
 • Система домов Плацидуса
 • Лунные узлы (☊ Раху / ☋ Кету)
 • Профессиональная графическая карта
+• Точные транзитные аспекты
 
 ✨ *Возможности:*
 • 🌟 Натальная карта
@@ -715,6 +785,7 @@ async def help_command(update, ctx):
 • ☊ Раху и ☋ Кету — Лунные узлы
 • 🎨 Графическая карта
 • 🤖 AI-прогнозы (DeepSeek)
+• 🎯 Точные транзитные аспекты
 • 💾 Данные сохраняются
 """
     await update.message.reply_text(help_text, parse_mode='Markdown')
@@ -723,11 +794,9 @@ async def logtest(update, ctx):
     """Тестовая команда для проверки токенов и связи с DeepSeek API"""
     await update.message.reply_text("🔍 Запускаю диагностику...")
     
-    # Проверка времени
     now = get_current_time()
     await update.message.reply_text(f"🕐 Текущее время сервера: {now.strftime('%d.%m.%Y %H:%M:%S')} UTC")
     
-    # Проверка DEEPSEEK_TOKEN
     token = os.getenv("DEEPSEEK_TOKEN")
     if token:
         print("🔍 DEEPSEEK_TOKEN: ✅ найден (длина: {})".format(len(token)))
@@ -762,7 +831,6 @@ async def logtest(update, ctx):
         print("🔍 DEEPSEEK_TOKEN: ❌ НЕ НАЙДЕН")
         await update.message.reply_text("❌ DEEPSEEK_TOKEN не найден в переменных окружения!")
     
-    # Проверка HF_TOKEN
     hf = os.getenv("HF_TOKEN")
     if hf:
         print("🔍 HF_TOKEN: ✅ найден")
@@ -771,7 +839,6 @@ async def logtest(update, ctx):
         print("🔍 HF_TOKEN: ❌ НЕ НАЙДЕН")
         await update.message.reply_text("⚠️ HF_TOKEN не найден (резерв недоступен)")
     
-    # Проверка TELEGRAM_TOKEN
     tg = os.getenv("TELEGRAM_TOKEN")
     if tg:
         print("🔍 TELEGRAM_TOKEN: ✅ найден")
@@ -781,7 +848,6 @@ async def logtest(update, ctx):
 async def btn(update, ctx):
     q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
     
-    # Для прогнозов всегда показываем актуальное время
     if d.startswith('f_'):
         now = get_current_time()
         print(f"📅 Прогноз запрошен: {now.strftime('%d.%m.%Y %H:%M:%S')} UTC")
@@ -823,18 +889,10 @@ async def btn(update, ctx):
                 elem = element_map.get(natal[planet]['sign'], '')
                 if elem: elements_count[elem] += 1
         dominant = max(elements_count, key=elements_count.get)
-        transit_aspects = []
-        for t_name, t_data in transits.items():
-            if t_name in ['Раху', 'Кету']: continue
-            for n_name, n_data in natal.items():
-                if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']: continue
-                diff = abs(t_data['lon'] - n_data['lon']) % 360
-                if diff > 180: diff = 360 - diff
-                if diff <= 3: transit_aspects.append(f"☌ {t_name} транзит соединяется с {n_name} натальным")
-                elif abs(diff-60) <= 3: transit_aspects.append(f"⚹ {t_name} транзит в секстиле к {n_name}")
-                elif abs(diff-90) <= 3: transit_aspects.append(f"□ {t_name} транзит в квадрате к {n_name}")
-                elif abs(diff-120) <= 3: transit_aspects.append(f"△ {t_name} транзит в тригоне к {n_name}")
-                elif abs(diff-180) <= 3: transit_aspects.append(f"☍ {t_name} транзит в оппозиции к {n_name}")
+        
+        # Рассчитываем точные транзитные аспекты
+        transit_aspects_data = calc_transit_aspects(natal, transits)
+        
         astro = f"""
 *Астрологические данные на {now.strftime('%d.%m.%Y')}:*
 
@@ -850,28 +908,54 @@ async def btn(update, ctx):
 
 *Натальные аспекты:* {', '.join(aspects[:4]) if aspects else 'нет значимых'}
 """
-        if transit_aspects:
-            astro += f"\n*Транзитные аспекты к натальной карте:*\n"
-            for ta in transit_aspects[:5]: astro += f"• {ta}\n"
-        prompt = f"""Сегодня {now.strftime('%d.%m.%Y')}. Ты — профессиональный астролог с 12-летним опытом консультирования. Твоя специализация: точные прогнозы по транзитам и натальной карте.
+        
+        # Формируем детальное описание точных аспектов
+        aspects_text = ""
+        if transit_aspects_data:
+            aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
+            for i, asp in enumerate(transit_aspects_data[:8]):
+                house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
+                aspects_text += f"   Угол: {asp['angle']}° | Отклонение: {asp['deviation']}° | {asp['direction']}\n"
+        else:
+            aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
+        
+        prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на {period} на основе ТОЧНЫХ математических аспектов.
 
-ВАЖНЫЕ ПРАВИЛА:
-1. Основывайся ТОЛЬКО на предоставленных астро-данных
-2. Не выдумывай конкретные события — говори о тенденциях и энергиях
-3. Учитывай все факторы: положение Солнца/Луны, транзитные аспекты, дома, Лунные узлы
-4. Пиши конкретно, избегай общих фраз вроде "будьте осторожны"
-5. Указывай причину прогноза: "потому что Марс в квадрате к вашему Солнцу..."
-6. Используй профессиональные термины, но объясняй их
-7. Структура ответа:
-   ❤️ Любовь и отношения (2-3 предложения с астро-обоснованием)
-   💼 Карьера и финансы (2-3 предложения с астро-обоснованием)
-   🏃 Здоровье и энергия (2-3 предложения с астро-обоснованием)
-   🌟 Главный совет на {period} (1-2 предложения)
+📅 ДАТА ПРОГНОЗА: {now.strftime('%d.%m.%Y')}
 
-АСТРО-ДАННЫЕ ДЛЯ ПРОГНОЗА НА {period.upper()} ({now.strftime('%d.%m.%Y')}):
+⚠️ ВАЖНЕЙШИЕ ПРАВИЛА:
+1. Основывай прогноз СТРОГО на предоставленных аспектах
+2. Для КАЖДОГО утверждения указывай КОНКРЕТНЫЙ аспект: "потому что транзитный Марс в точном квадрате (90°) к вашему натальному Солнцу..."
+3. Учитывай, сходящийся аспект или расходящийся:
+   - Сходящийся (усиливается) = событие/тенденция впереди, нарастает
+   - Расходящийся (ослабевает) = событие/тенденция уже прошло пик
+4. Для каждого аспекта учитывай ДОМА — они показывают СФЕРУ ЖИЗНИ
+5. Не пиши общих фраз вроде "будьте осторожны" без привязки к аспекту
+
+СТРУКТУРА ОТВЕТА:
+❤️ ЛЮБОВЬ И ОТНОШЕНИЯ (3-4 предложения)
+- Какие аспекты влияют: укажи конкретные транзиты к Венере, Луне, управителю 7 дома
+- Прогноз: что произойдёт в ближайший {period}
+
+💼 КАРЬЕРА И ФИНАНСЫ (3-4 предложения)
+- Какие аспекты влияют: укажи конкретные транзиты к Меркурию, Сатурну, Юпитеру
+- Прогноз: какие действия принесут результат
+
+🏃 ЭНЕРГИЯ И ЗДОРОВЬЕ (2-3 предложения)
+- Какие аспекты влияют: укажи транзиты к Марсу, Солнцу
+- Прогноз: уровень энергии и рекомендации
+
+🌟 ГЛАВНЫЙ СОВЕТ НА {period.upper()} (2-3 предложения)
+- Самый важный аспект {period[:4]} и как его использовать
+
+АСТРО-ДАННЫЕ:
 {astro}
 
-Дай развёрнутый прогноз. 12-16 предложений. Используй эмодзи."""
+{aspects_text}
+
+Дай прогноз. 15-20 предложений. Указывай градусы и направление аспектов."""
+        
         forecast = ai_client.ask(prompt, max_tokens=700)
         if forecast:
             parts = ai_client.split_message(forecast)
@@ -881,20 +965,25 @@ async def btn(update, ctx):
                 else:
                     await update.effective_message.reply_text(part)
         else:
-            love_text = {'Овен': 'время страсти и новых знакомств', 'Телец': 'время чувственности и стабильности', 'Близнецы': 'время общения и флирта', 'Рак': 'время глубоких эмоций и заботы', 'Лев': 'время романтики и внимания', 'Дева': 'время практичности в отношениях', 'Весы': 'время гармонии и партнёрства', 'Скорпион': 'время страсти и трансформации', 'Стрелец': 'время приключений и свободы', 'Козерог': 'время серьёзных решений', 'Водолей': 'время необычных знакомств', 'Рыбы': 'время романтики и вдохновения'}
-            career_text = {'Овен': 'проявите инициативу, вас заметят', 'Телец': 'сосредоточьтесь на финансах', 'Близнецы': 'делитесь идеями, налаживайте связи', 'Рак': 'работайте в комфортном темпе', 'Лев': 'берите лидерство, вас поддержат', 'Дева': 'время анализа и планирования', 'Весы': 'ищите баланс и партнёрство', 'Скорпион': 'копайте глубже, найдёте скрытое', 'Стрелец': 'расширяйте горизонты, учитесь', 'Козерог': 'стройте долгосрочные планы', 'Водолей': 'внедряйте инновации', 'Рыбы': 'доверьтесь интуиции в делах'}
-            health_text = {'Огонь': 'много энергии, займитесь спортом', 'Земля': 'стабильное состояние, держите режим', 'Воздух': 'берегите нервную систему', 'Вода': 'больше отдыхайте, возможна усталость'}
+            # Резервная интерпретация с использованием точных аспектов
             fallback = f"""🌟 *Прогноз на {period}* ({now.strftime('%d.%m.%Y')})
 
-❤️ *Любовь:* {love_text.get(transits['Венера']['sign'], 'благоприятный период')} — Венера в {transits['Венера']['sign']} способствует этому.
+"""
+            if transit_aspects_data:
+                for asp in transit_aspects_data[:4]:
+                    house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                    fallback += f"{asp['symbol']} {asp['transit_planet']} {asp['aspect']} с {asp['natal_planet']} натальным{house_info} — {asp['influence']}\n"
+            
+            love_text = {'Овен': 'время страсти и новых знакомств', 'Телец': 'время чувственности и стабильности', 'Близнецы': 'время общения и флирта', 'Рак': 'время глубоких эмоций и заботы', 'Лев': 'время романтики и внимания', 'Дева': 'время практичности в отношениях', 'Весы': 'время гармонии и партнёрства', 'Скорпион': 'время страсти и трансформации', 'Стрелец': 'время приключений и свободы', 'Козерог': 'время серьёзных решений', 'Водолей': 'время необычных знакомств', 'Рыбы': 'время романтики и вдохновения'}
+            career_text = {'Овен': 'проявите инициативу, вас заметят', 'Телец': 'сосредоточьтесь на финансах', 'Близнецы': 'делитесь идеями, налаживайте связи', 'Рак': 'работайте в комфортном темпе', 'Лев': 'берите лидерство, вас поддержат', 'Дева': 'время анализа и планирования', 'Весы': 'ищите баланс и партнёрство', 'Скорпион': 'копайте глубже, найдёте скрытое', 'Стрелец': 'расширяйте горизонты, учитесь', 'Козерог': 'стройте долгосрочные планы', 'Водолей': 'внедряйте инновации', 'Рыбы': 'доверьтесь интуиции в делах'}
+            
+            fallback += f"""
+❤️ *Любовь:* {love_text.get(transits['Венера']['sign'], 'благоприятный период')}
 
-💼 *Карьера:* {career_text.get(transits['Марс']['sign'], 'сосредоточьтесь на задачах')} — Марс в {transits['Марс']['sign']} даёт такую энергию.
+💼 *Карьера:* {career_text.get(transits['Марс']['sign'], 'сосредоточьтесь на задачах')}
 
-🏃 *Здоровье:* {health_text.get(dominant, 'поддерживайте баланс')}
-
-🌟 *Совет:* {'Действуйте смело — транзитный Марс поддерживает инициативы' if transits['Марс']['sign'] in ['Овен','Лев','Стрелец'] else 'Планируйте тщательно — Сатурн требует дисциплины' if transits['Сатурн']['sign'] in ['Козерог','Водолей'] else 'Слушайте сердце — Луна в водном знаке обостряет интуицию' if transits['Луна']['sign'] in ['Рак','Скорпион','Рыбы'] else 'День благоприятен для общения и новых идей'}.
-
-☊ *Раху в {transits["Раху"]["sign"]}* — {'время расширять зону комфорта' if transits['Раху']['sign'] in ['Овен','Лев','Стрелец'] else 'время практического роста' if transits['Раху']['sign'] in ['Телец','Дева','Козерог'] else 'время новых знаний' if transits['Раху']['sign'] in ['Близнецы','Весы','Водолей'] else 'время эмоционального роста'}."""
+🌟 *Совет:* Обратите внимание на указанные выше точные аспекты — они показывают главные тенденции {period[:4]}.
+"""
             await update.effective_message.reply_text(fallback, reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'natal':
         if uid not in users: 
