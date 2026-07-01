@@ -701,6 +701,61 @@ async def help_command(update, ctx):
 """
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
+async def logtest(update, ctx):
+    """Тестовая команда для проверки токенов и связи с DeepSeek API"""
+    await update.message.reply_text("🔍 Запускаю диагностику...")
+    
+    # Проверка DEEPSEEK_TOKEN
+    token = os.getenv("DEEPSEEK_TOKEN")
+    if token:
+        print("🔍 DEEPSEEK_TOKEN: ✅ найден (длина: {})".format(len(token)))
+        await update.message.reply_text("✅ DEEPSEEK_TOKEN найден! Пробую подключиться к DeepSeek API...")
+        
+        try:
+            import requests as req
+            resp = req.post(
+                "https://api.deepseek.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [{"role": "user", "content": "Скажи: OK"}],
+                    "max_tokens": 10
+                },
+                timeout=15
+            )
+            if resp.status_code == 200:
+                text = resp.json()["choices"][0]["message"]["content"]
+                print(f"✅ DeepSeek API ответил: {text}")
+                await update.message.reply_text(f"✅ DeepSeek работает! Ответ: {text}")
+            else:
+                print(f"❌ DeepSeek API ошибка: {resp.status_code} - {resp.text[:200]}")
+                await update.message.reply_text(f"❌ DeepSeek API error {resp.status_code}: {resp.text[:300]}")
+        except Exception as e:
+            print(f"❌ Ошибка соединения с DeepSeek: {e}")
+            await update.message.reply_text(f"❌ Нет связи с DeepSeek: {str(e)[:300]}")
+    else:
+        print("🔍 DEEPSEEK_TOKEN: ❌ НЕ НАЙДЕН")
+        await update.message.reply_text("❌ DEEPSEEK_TOKEN не найден в переменных окружения!")
+    
+    # Проверка HF_TOKEN
+    hf = os.getenv("HF_TOKEN")
+    if hf:
+        print("🔍 HF_TOKEN: ✅ найден")
+        await update.message.reply_text("✅ HF_TOKEN найден (резерв)")
+    else:
+        print("🔍 HF_TOKEN: ❌ НЕ НАЙДЕН")
+        await update.message.reply_text("⚠️ HF_TOKEN не найден (резерв недоступен)")
+    
+    # Проверка TELEGRAM_TOKEN
+    tg = os.getenv("TELEGRAM_TOKEN")
+    if tg:
+        print("🔍 TELEGRAM_TOKEN: ✅ найден")
+    else:
+        print("🔍 TELEGRAM_TOKEN: ❌ НЕ НАЙДЕН")
+
 async def btn(update, ctx):
     q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
     if d == 'forecast':
@@ -1133,6 +1188,7 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CommandHandler('help', help_command))
+    app.add_handler(CommandHandler('logtest', logtest))
     app.add_handler(CallbackQueryHandler(btn))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     threading.Thread(target=run_keepalive, daemon=True).start()
