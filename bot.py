@@ -391,13 +391,19 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     threading.Thread(target=run_keepalive, daemon=True).start()
     
-    if SUPPORT_TOKEN:
-        support_app = Application.builder().token(SUPPORT_TOKEN).build()
-        support_app.add_handler(CommandHandler('start', support_start))
-        support_app.add_handler(CommandHandler('reply', reply_to_user))
-        support_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_admin))
-        threading.Thread(target=support_app.run_polling, kwargs={'drop_pending_updates': True}, daemon=True).start()
-        print("🚀 Бот поддержки запущен!")
+    # Запускаем бота поддержки в том же event loop
+    async def post_init(app):
+        if SUPPORT_TOKEN:
+            support_app = Application.builder().token(SUPPORT_TOKEN).build()
+            support_app.add_handler(CommandHandler('start', support_start))
+            support_app.add_handler(CommandHandler('reply', reply_to_user))
+            support_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_admin))
+            await support_app.initialize()
+            await support_app.start()
+            await support_app.updater.start_polling(drop_pending_updates=True)
+            print("🚀 Бот поддержки запущен!")
+    
+    app.post_init = post_init
     
     print("🚀 Бот запущен!")
     app.run_polling(drop_pending_updates=True)
