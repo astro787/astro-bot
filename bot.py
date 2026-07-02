@@ -81,7 +81,7 @@ async def support_msg(update, ctx):
     
     text = f"📩 *Сообщение от пользователя*\n👤 *{user.full_name}* (@{user.username or 'нет'})\n🆔 `{user.id}`\n💬 {msg}\n\n_Ответить:_ `/reply {user.id} текст`"
     await ctx.bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode='Markdown')
-    await update.message.reply_text("✅ *Отправлено!* Астролог ответит вам лично в ближайшее время.", parse_mode='Markdown')
+    await update.message.reply_text("✅ *Отправлено!* ответим вам в ближайшее время.", parse_mode='Markdown')
 
 async def reply_cmd(update, ctx):
     """Админ отвечает пользователю"""
@@ -97,7 +97,7 @@ async def reply_cmd(update, ctx):
         user_id = int(args[1])
         await ctx.bot.send_message(
             chat_id=user_id,
-            text=f"💬 *Ответ от астролога:*\n\n{args[2]}\n\n─ @Astromasbot",
+            text=f"💬 *Ответ:*\n\n{args[2]}\n\n─ @Astromasbot",
             parse_mode='Markdown'
         )
         await update.message.reply_text(f"✅ Ответ отправлен пользователю {user_id}")
