@@ -352,13 +352,13 @@ async def btn(update, ctx):
     
     elif d == 'support':
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 Написать вопрос", url="https://t.me/Astromasbot")],
+            [InlineKeyboardButton("💬 Написать вопрос", url="https://t.me/Astromasbot?start=support")],
             [InlineKeyboardButton("🔙 Назад", callback_data="back")]
         ])
         await q.edit_message_text(
             "💬 *Поддержка*\n\n"
             "Нажмите кнопку ниже, чтобы перейти в чат и написать ваш вопрос.\n"
-            "вернемся с ответом очень быстро",
+            "Вернемся с ответом очень быстро",
             reply_markup=kb,
             parse_mode='Markdown'
         )
