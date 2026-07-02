@@ -951,18 +951,70 @@ async def btn(update, ctx):
 *Натальные аспекты:* {', '.join(aspects[:4]) if aspects else 'нет значимых'}
 """
         
+        # Формируем аспекты — для дня только Луна
         aspects_text = ""
         if transit_aspects_data:
-            aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
-            for i, asp in enumerate(transit_aspects_data[:8]):
-                house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
-                aspects_text += f"   Угол: {asp['angle']}° | Отклонение: {asp['deviation']}° | {asp['direction']}\n"
+            if d == 'f_day':
+                # Для дня — только аспекты Луны
+                aspects_text = "\n*АСПЕКТЫ ЛУНЫ СЕГОДНЯ:*\n"
+                moon_aspects = [a for a in transit_aspects_data if a['transit_planet'] == 'Луна']
+                if moon_aspects:
+                    for i, asp in enumerate(moon_aspects[:5]):
+                        house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                        aspects_text += f"{asp['symbol']} Луна {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
+                        aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
+                else:
+                    aspects_text += "Луна сегодня без точных аспектов — день гармоничный.\n"
+            else:
+                # Для недели и месяца — все аспекты
+                aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
+                for i, asp in enumerate(transit_aspects_data[:8]):
+                    house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
+                    aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
         else:
             aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
         
-        # Короткий промпт для месяца
-        if d == 'f_month':
+        # Промпты
+        if d == 'f_day':
+            # Прогноз на день — ТОЛЬКО по Луне
+            prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на день, основанный ТОЛЬКО на положении Луны.
+
+📅 ДАТА: {now.strftime('%d.%m.%Y')}
+
+⚠️ ВАЖНЕЙШИЕ ПРАВИЛА:
+1. Анализируй ТОЛЬКО Луну: её знак, дом, аспекты к натальным планетам
+2. Луна — самая быстрая планета, она определяет настроение и события дня
+3. Для каждого утверждения указывай причину: "потому что Луна в {moon_sign} формирует {{аспект}} с вашим {{планета}}"
+4. Используй нейтральные обращения (человек/партнёр)
+
+ЛУНА СЕГОДНЯ:
+🌙 Луна в {moon_sign} {natal['Луна']['degree']}° (в {moon_house if moon_house else '?'} доме)
+
+{aspects_text}
+
+ОБЩИЕ ДАННЫЕ:
+{astro}
+
+СТРУКТУРА ОТВЕТА:
+🌙 *НАСТРОЕНИЕ ДНЯ* (2-3 предложения)
+- Как Луна влияет на эмоциональный фон
+- Что сегодня будет приносить комфорт
+
+❤️ *ОТНОШЕНИЯ* (2 предложения)
+- Как Луна влияет на общение с близкими
+- На что обратить внимание в контактах
+
+💼 *ДЕЛА И РАБОТА* (2 предложения)
+- Какие дела лучше делать при такой Луне
+- Чего лучше избегать
+
+🌟 *СОВЕТ ДНЯ* (1-2 предложения)
+- Конкретное действие, которое принесёт удачу
+
+Дай краткий прогноз. 8-10 предложений. Не используй другие планеты — только Луну."""
+            max_tok = 500
+        elif d == 'f_month':
             prompt = f"""Ты — астролог. Прогноз на МЕСЯЦ на основе точных аспектов.
 
 📅 {now.strftime('%d.%m.%Y')}
@@ -1026,9 +1078,15 @@ async def btn(update, ctx):
 
 """
             if transit_aspects_data:
-                for asp in transit_aspects_data[:4]:
-                    house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                    fallback += f"{asp['symbol']} {asp['transit_planet']} {asp['aspect']} с {asp['natal_planet']} натальным{house_info} — {asp['influence']}\n"
+                if d == 'f_day':
+                    moon_aspects = [a for a in transit_aspects_data if a['transit_planet'] == 'Луна']
+                    for asp in moon_aspects[:3]:
+                        house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                        fallback += f"{asp['symbol']} Луна {asp['aspect']} с {asp['natal_planet']} натальным{house_info} — {asp['influence']}\n"
+                else:
+                    for asp in transit_aspects_data[:4]:
+                        house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                        fallback += f"{asp['symbol']} {asp['transit_planet']} {asp['aspect']} с {asp['natal_planet']} натальным{house_info} — {asp['influence']}\n"
             
             love_text = {'Овен': 'время страсти и новых знакомств', 'Телец': 'время чувственности и стабильности', 'Близнецы': 'время общения и флирта', 'Рак': 'время глубоких эмоций и заботы', 'Лев': 'время романтики и внимания', 'Дева': 'время практичности в отношениях', 'Весы': 'время гармонии и партнёрства', 'Скорпион': 'время страсти и трансформации', 'Стрелец': 'время приключений и свободы', 'Козерог': 'время серьёзных решений', 'Водолей': 'время необычных знакомств', 'Рыбы': 'время романтики и вдохновения'}
             career_text = {'Овен': 'проявите инициативу, вас заметят', 'Телец': 'сосредоточьтесь на финансах', 'Близнецы': 'делитесь идеями, налаживайте связи', 'Рак': 'работайте в комфортном темпе', 'Лев': 'берите лидерство, вас поддержат', 'Дева': 'время анализа и планирования', 'Весы': 'ищите баланс и партнёрство', 'Скорпион': 'копайте глубже, найдёте скрытое', 'Стрелец': 'расширяйте горизонты, учитесь', 'Козерог': 'стройте долгосрочные планы', 'Водолей': 'внедряйте инновации', 'Рыбы': 'доверьтесь интуиции в делах'}
@@ -1038,7 +1096,7 @@ async def btn(update, ctx):
 
 💼 *Карьера:* {career_text.get(transits['Марс']['sign'], 'сосредоточьтесь на задачах')}
 
-🌟 *Совет:* Обратите внимание на указанные выше точные аспекты — они показывают главные тенденции {period[:4]}.
+🌟 *Совет:* {'Следуйте за Луной — она сегодня в ' + moon_sign if d == 'f_day' else 'Обратите внимание на указанные выше точные аспекты — они показывают главные тенденции ' + period[:4]}.
 """
             await update.effective_message.reply_text(fallback, reply_markup=overview_btn(), parse_mode='Markdown')
     elif d == 'natal':
@@ -1372,7 +1430,6 @@ async def msg(update, ctx):
     
     try:
         # Заменяем двоеточие во времени на пробел для единообразия
-        # 19.03.1991 12:13 Курск → 19.03.1991 12 13 Курск
         t_clean = t
         parts_check = t.split()
         if len(parts_check) >= 2 and ':' in parts_check[1] and parts_check[1].count(':') == 1:
@@ -1381,12 +1438,10 @@ async def msg(update, ctx):
         
         parts = t_clean.split()
         
-        # Определяем, сколько частей — дата (1 часть), время (2 части), город (остальное)
         if len(parts) >= 3:
             date_part = parts[0]
             day, month, year = map(int, date_part.split('.'))
             
-            # Проверяем, являются ли parts[1] и parts[2] числами (часы и минуты)
             if parts[1].isdigit() and parts[2].isdigit():
                 hour = int(parts[1])
                 minute = int(parts[2])
