@@ -92,6 +92,23 @@ def get_aspects(planets):
             if asp: aspects_list.append(f"{names[i]} {asp} {names[j]}")
     return aspects_list
 
+def get_aspects_with_angles(natal):
+    """Возвращает список аспектов для графической карты"""
+    aspects = []
+    names = [p for p in natal.keys() if p not in ['houses', 'Асцендент', 'MC', 'Десцендент', 'IC']]
+    for i in range(len(names)):
+        for j in range(i+1, len(names)):
+            diff = abs(natal[names[i]]['lon'] - natal[names[j]]['lon']) % 360
+            if diff > 180: diff = 360 - diff
+            asp = None
+            if diff <= 5: asp = 'соединение'
+            elif abs(diff-60) <= 5: asp = 'секстиль'
+            elif abs(diff-90) <= 6: asp = 'квадрат'
+            elif abs(diff-120) <= 6: asp = 'тригон'
+            elif abs(diff-180) <= 6: asp = 'оппозиция'
+            if asp: aspects.append((names[i], names[j], asp, diff))
+    return aspects
+
 def calc_transit_aspects(natal, transits, orb=2.0):
     aspects = []
     aspect_meanings = {'соединение': {'символ': '☌', 'влияние': 'усиление', 'орбис': 8}, 'оппозиция': {'символ': '☍', 'влияние': 'напряжение', 'орбис': 8}, 'тригон': {'символ': '△', 'влияние': 'гармония', 'орбис': 8}, 'квадрат': {'символ': '□', 'влияние': 'вызов', 'орбис': 7}, 'секстиль': {'символ': '⚹', 'влияние': 'шансы', 'орбис': 5}}
