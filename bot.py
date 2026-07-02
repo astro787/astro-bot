@@ -1284,59 +1284,43 @@ async def msg(update, ctx):
             return
         await update.message.reply_text("❌ *Овен Телец*", reply_markup=back_btn(), parse_mode='Markdown')
         return
+    
     try:
-    parts = t.split()
-    
-    # Определяем, сколько частей — дата (1 часть), время (2 части), город (остальное)
-    if len(parts) >= 3:
-        date_part = parts[0]
-        day, month, year = map(int, date_part.split('.'))
+        parts = t.split()
         
-        # Проверяем, являются ли parts[1] и parts[2] числами (часы и минуты)
-        if len(parts) >= 3 and parts[1].isdigit() and parts[2].isdigit():
-            hour = int(parts[1])
-            minute = int(parts[2])
-            city_str = ' '.join(parts[3:]) if len(parts) > 3 else 'москва'
-        elif len(parts) >= 2 and parts[1].isdigit():
-            hour = int(parts[1])
-            minute = 0
-            city_str = ' '.join(parts[2:]) if len(parts) > 2 else 'москва'
-        else:
-            hour = 12
-            minute = 0
-            city_str = ' '.join(parts[1:]) if len(parts) > 1 else 'москва'
-    
-    elif '.' in t and len(t.split('.')) == 3:
-        # Формат: ДД.ММ.ГГГГ Город или просто ДД.ММ.ГГГГ
-        parts_dot = t.split(maxsplit=1)  # Разделяем на дату и остальное
-        date_part = parts_dot[0]
-        day, month, year = map(int, date_part.split('.'))
-        hour, minute = 12, 0
-        city_str = parts_dot[1].strip() if len(parts_dot) > 1 else 'москва'
-    else:
-        raise ValueError("Неверный формат")
-    
-    print(f"DEBUG PARSING: date={day}.{month}.{year}, time={hour}:{minute}, city={city_str}")
-    
-except Exception as e:
-    print(f"Ошибка парсинга: {e}")
-    await update.message.reply_text(
-        f"❌ Ошибка: неверный формат.\n\n"
-        f"Форматы:\n• `15.05.1990`\n• `15.05.1990 Москва`\n"
-        f"• `15.05.1990 14 30`\n• `15.05.1990 14 30 Нижний Тагил`",
-        reply_markup=back_btn(),
-        parse_mode='Markdown'
-    )
-    return
+        # Определяем, сколько частей — дата (1 часть), время (2 части), город (остальное)
+        if len(parts) >= 3:
+            date_part = parts[0]
+            day, month, year = map(int, date_part.split('.'))
+            
+            # Проверяем, являются ли parts[1] и parts[2] числами (часы и минуты)
+            if parts[1].isdigit() and parts[2].isdigit():
+                hour = int(parts[1])
+                minute = int(parts[2])
+                city_str = ' '.join(parts[3:]) if len(parts) > 3 else 'москва'
+            elif parts[1].isdigit():
+                hour = int(parts[1])
+                minute = 0
+                city_str = ' '.join(parts[2:]) if len(parts) > 2 else 'москва'
+            else:
+                hour = 12
+                minute = 0
+                city_str = ' '.join(parts[1:]) if len(parts) > 1 else 'москва'
+        
         elif '.' in t and len(t.split('.')) == 3 and ' ' in t:
             parts_dot = t.split()
             date_part = parts_dot[0]
             day, month, year = map(int, date_part.split('.'))
             hour, minute = 12, 0
             city_str = ' '.join(parts_dot[1:]) if len(parts_dot) > 1 else 'москва'
+        
         elif '.' in t and len(t.split('.')) == 3:
             day, month, year = map(int, t.split('.')); hour, minute = 12, 0; city_str = 'москва'
-        else: raise ValueError
+        
+        else:
+            raise ValueError("Неверный формат")
+        
+        print(f"DEBUG PARSING: date={day}.{month}.{year}, time={hour}:{minute}, city={city_str}")
         
         validate_date(day, month, year)
         validate_time(hour, minute)
@@ -1352,8 +1336,9 @@ except Exception as e:
               [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata_natal")],
               [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
         await update.message.reply_text(f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    
     except ValueError as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*\n• *15.05.1990 Москва*", reply_markup=back_btn(), parse_mode='Markdown')
+        await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*\n• *15.05.1990 Москва*\n• *15.05.1990 14 30 Нижний Тагил*", reply_markup=back_btn(), parse_mode='Markdown')
     except Exception as e:
         print(f"Ошибка: {e}")
         await update.message.reply_text("❌ Произошла ошибка.", reply_markup=back_btn(), parse_mode='Markdown')
