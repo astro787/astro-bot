@@ -790,7 +790,6 @@ async def start(update, ctx):
     """Приветствие с юридическими документами"""
     ctx.user_data['mode'] = ''
     
-    # Сохраняем согласие автоматически при старте
     uid = update.effective_user.id
     if uid not in users:
         users[uid] = {}
@@ -856,13 +855,6 @@ async def help_command(update, ctx):
 💑 *Совместимость* — по знакам
 🌙 *Луна* — фаза и положение
 📅 *Гороскоп* — на сегодня
-
-*Особенности:*
-• ☊ Раху и ☋ Кету — Лунные узлы
-• 🎨 Графическая карта
-• 🤖 AI-прогнозы (DeepSeek)
-• 🎯 Точные транзитные аспекты
-• 💾 Данные сохраняются
 """
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
@@ -874,60 +866,29 @@ async def logtest(update, ctx):
     
     token = os.getenv("DEEPSEEK_TOKEN")
     if token:
-        print("🔍 DEEPSEEK_TOKEN: ✅ найден (длина: {})".format(len(token)))
-        await update.message.reply_text("✅ DEEPSEEK_TOKEN найден! Пробую подключиться к DeepSeek API...")
-        
+        await update.message.reply_text("✅ DEEPSEEK_TOKEN найден!")
         try:
             import requests as req
             resp = req.post(
                 "https://api.deepseek.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "deepseek-chat",
-                    "messages": [{"role": "user", "content": "Скажи: OK"}],
-                    "max_tokens": 10
-                },
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                json={"model": "deepseek-chat", "messages": [{"role": "user", "content": "OK"}], "max_tokens": 10},
                 timeout=15
             )
             if resp.status_code == 200:
-                text = resp.json()["choices"][0]["message"]["content"]
-                print(f"✅ DeepSeek API ответил: {text}")
-                await update.message.reply_text(f"✅ DeepSeek работает! Ответ: {text}")
+                await update.message.reply_text("✅ DeepSeek работает!")
             else:
-                print(f"❌ DeepSeek API ошибка: {resp.status_code} - {resp.text[:200]}")
-                await update.message.reply_text(f"❌ DeepSeek API error {resp.status_code}: {resp.text[:300]}")
+                await update.message.reply_text(f"❌ DeepSeek error {resp.status_code}")
         except Exception as e:
-            print(f"❌ Ошибка соединения с DeepSeek: {e}")
-            await update.message.reply_text(f"❌ Нет связи с DeepSeek: {str(e)[:300]}")
+            await update.message.reply_text(f"❌ Нет связи с DeepSeek: {e}")
     else:
-        print("🔍 DEEPSEEK_TOKEN: ❌ НЕ НАЙДЕН")
-        await update.message.reply_text("❌ DEEPSEEK_TOKEN не найден в переменных окружения!")
-    
-    hf = os.getenv("HF_TOKEN")
-    if hf:
-        print("🔍 HF_TOKEN: ✅ найден")
-        await update.message.reply_text("✅ HF_TOKEN найден (резерв)")
-    else:
-        print("🔍 HF_TOKEN: ❌ НЕ НАЙДЕН")
-        await update.message.reply_text("⚠️ HF_TOKEN не найден (резерв недоступен)")
-    
-    tg = os.getenv("TELEGRAM_TOKEN")
-    if tg:
-        print("🔍 TELEGRAM_TOKEN: ✅ найден")
-    else:
-        print("🔍 TELEGRAM_TOKEN: ❌ НЕ НАЙДЕН")
+        await update.message.reply_text("❌ DEEPSEEK_TOKEN не найден!")
 
 async def btn(update, ctx):
     q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
     
     if d == 'start_accept':
-        # Убираем кнопку СТАРТ (она "испаряется")
         await q.edit_message_reply_markup(reply_markup=None)
-        
-        # Отправляем новое сообщение с меню
         await q.message.reply_text(
             f"{cat_emoji()} *Добро пожаловать!*\n\n"
             "Для начала работы введите данные своего рождения:\n"
@@ -939,8 +900,7 @@ async def btn(update, ctx):
         return
     
     if d.startswith('f_'):
-        now = get_current_time()
-        print(f"📅 Прогноз запрошен: {now.strftime('%d.%m.%Y %H:%M:%S')} UTC")
+        print(f"📅 Прогноз запрошен: {get_current_time().strftime('%d.%m.%Y %H:%M:%S')} UTC")
     
     if d == 'forecast':
         if uid in users:
@@ -950,8 +910,7 @@ async def btn(update, ctx):
             await q.edit_message_text(f"✨ *{users[uid]['sign']}* ✨\n\nВыберите период прогноза:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         else:
             await q.edit_message_text(
-                "🔮 *Прогноз ИИ*\n\n"
-                "Выберите формат ввода данных своего рождения:\n\n"
+                "🔮 *Прогноз ИИ*\n\nВыберите формат ввода данных своего рождения:\n\n"
                 "📝 *С временем:* `15.05.1990 14:30 Москва`\n"
                 "📝 *Без времени:* `15.05.1990 Москва`",
                 reply_markup=InlineKeyboardMarkup([
@@ -966,18 +925,10 @@ async def btn(update, ctx):
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         now = get_current_time()
         
-        # ПРИНУДИТЕЛЬНАЯ установка подписей через прямую проверку d
-        if d == 'f_month':
-            label = 'месяц'
-            ptitle = 'месяц'
-        elif d == 'f_week':
-            label = 'неделю'
-            ptitle = 'неделю'
-        else:
-            label = 'сегодня'
-            ptitle = 'сегодня'
+        if d == 'f_month': label, ptitle = 'месяц', 'месяц'
+        elif d == 'f_week': label, ptitle = 'неделю', 'неделю'
+        else: label, ptitle = 'сегодня', 'сегодня'
         
-        print(f"DEBUG: d={d}, label={label}, ptitle={ptitle}")
         await q.message.reply_text(f"{cat_emoji()} Рассчитываю прогноз на {label}...")
         
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
@@ -1014,7 +965,6 @@ async def btn(update, ctx):
         
         # ===== ПРОГНОЗ НА ДЕНЬ: ПОЧАСОВОЙ РАСЧЁТ ЛУНЫ =====
         if d == 'f_day':
-            # Рассчитываем движение Луны в течение дня (каждый час)
             moon_hourly = []
             for h in range(24):
                 jd_hour = swe.julday(now.year, now.month, now.day, h + now.minute/60.0)
@@ -1022,47 +972,32 @@ async def btn(update, ctx):
                 moon_sign_hour = sign_from_lon(moon_lon)
                 moon_deg_hour = degree_in_sign(moon_lon)
                 
-                # Находим дом Луны для этого часа
                 moon_house_hour = None
                 for house in natal['houses']:
                     next_house = natal['houses'][(natal['houses'].index(house) + 1) % 12]
                     if house['lon'] <= next_house['lon']:
                         if house['lon'] <= moon_lon < next_house['lon']:
-                            moon_house_hour = house['house_num']
-                            break
+                            moon_house_hour = house['house_num']; break
                     else:
                         if moon_lon >= house['lon'] or moon_lon < next_house['lon']:
-                            moon_house_hour = house['house_num']
-                            break
+                            moon_house_hour = house['house_num']; break
                 
-                # Аспекты Луны к натальным планетам на этот час
                 hour_aspects = []
                 for n_name, n_data in natal.items():
-                    if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']:
-                        continue
+                    if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']: continue
                     diff = abs(moon_lon - n_data['lon']) % 360
-                    if diff > 180:
-                        diff = 360 - diff
-                    
+                    if diff > 180: diff = 360 - diff
                     aspect_name = None
                     if diff <= 2: aspect_name = 'соединение'
                     elif abs(diff - 60) <= 2: aspect_name = 'секстиль'
                     elif abs(diff - 90) <= 2: aspect_name = 'квадрат'
                     elif abs(diff - 120) <= 2: aspect_name = 'тригон'
                     elif abs(diff - 180) <= 2: aspect_name = 'оппозиция'
-                    
                     if aspect_name:
                         hour_aspects.append(f"{h:02d}:00 — Луна {aspect_name} с {n_name} натальным ({n_data['sign']})")
                 
-                moon_hourly.append({
-                    'hour': h,
-                    'sign': moon_sign_hour,
-                    'degree': moon_deg_hour,
-                    'house': moon_house_hour,
-                    'aspects': hour_aspects
-                })
+                moon_hourly.append({'hour': h, 'sign': moon_sign_hour, 'degree': moon_deg_hour, 'house': moon_house_hour, 'aspects': hour_aspects})
             
-            # Находим важные события дня по Луне
             sign_changes = []
             current_sign = moon_hourly[0]['sign']
             for entry in moon_hourly[1:]:
@@ -1078,14 +1013,9 @@ async def btn(update, ctx):
                     current_house = entry['house']
             
             all_day_aspects = []
-            for entry in moon_hourly:
-                all_day_aspects.extend(entry['aspects'])
+            for entry in moon_hourly: all_day_aspects.extend(entry['aspects'])
+            unique_aspects = sorted(list(set(all_day_aspects)))
             
-            # Уникальные аспекты без дубликатов
-            unique_aspects = list(set(all_day_aspects))
-            unique_aspects.sort()
-            
-            # Текстовое описание
             aspects_text = f"""
 *ТОЧНОЕ ДВИЖЕНИЕ ЛУНЫ НА {now.strftime('%d.%m.%Y')}:*
 
@@ -1100,107 +1030,77 @@ async def btn(update, ctx):
 *Точные аспекты Луны:*
 {chr(10).join(unique_aspects[:6]) if unique_aspects else 'Луна сегодня без точных аспектов — день гармоничный.'}
 """
-            
-            prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на день, основанный ТОЛЬКО на движении Луны.
+            prompt = f"""Ты — астролог. Прогноз на день ТОЛЬКО по Луне.
 
-📅 ДАТА: {now.strftime('%d.%m.%Y')}
+📅 {now.strftime('%d.%m.%Y')}
 
-⚠️ ВАЖНЕЙШИЕ ПРАВИЛА:
-1. Анализируй ТОЛЬКО Луну: её смену знака, смену дома, точные аспекты
-2. Указывай КОНКРЕТНОЕ ВРЕМЯ событий, используя данные о смене знака/дома
-3. Для каждого утверждения указывай причину: "потому что в 14:00 Луна переходит в знак Х..."
-4. Используй нейтральные обращения (человек/партнёр)
+ПРАВИЛА: Анализируй ТОЛЬКО Луну. Указывай КОНКРЕТНОЕ ВРЕМЯ. Нейтральные обращения.
 
 {aspects_text}
 
 ОБЩИЕ ДАННЫЕ:
 {astro}
 
-СТРУКТУРА ОТВЕТА:
-🌙 *НАСТРОЕНИЕ ДНЯ* (2-3 предложения)
-- Как Луна влияет на эмоции, учитывая смену знака (если есть)
+СТРУКТУРА:
+🌙 НАСТРОЕНИЕ ДНЯ (2-3 предл.)
+❤️ ОТНОШЕНИЯ (2 предл., укажи часы)
+💼 ДЕЛА И РАБОТА (2 предл., укажи часы)
+🌟 СОВЕТ ДНЯ (1-2 предл.)
 
-❤️ *ОТНОШЕНИЯ* (2 предложения)
-- Лучшее время для общения (укажи часы)
-
-💼 *ДЕЛА И РАБОТА* (2 предложения)
-- Лучшее время для работы (укажи часы)
-
-🌟 *СОВЕТ ДНЯ* (1-2 предложения)
-- Конкретное действие с учётом времени
-
-Дай краткий прогноз. 8-10 предложений. Указывай время. Не используй другие планеты."""
+Дай краткий прогноз. 8-10 предложений. Указывай время. Только Луну."""
             max_tok = 500
         
-        # ===== ПРОГНОЗ НА МЕСЯЦ =====
         elif d == 'f_month':
-            # Формируем аспекты
-            aspects_text = ""
+            aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
             if transit_aspects_data:
-                aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
                 for i, asp in enumerate(transit_aspects_data[:8]):
                     house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
-                    aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
-            else:
-                aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
+                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} {asp['aspect']} с {asp['natal_planet']} — {asp['influence']}{house_info}\n"
+            else: aspects_text += "Нет точных аспектов.\n"
             
-            prompt = f"""Ты — астролог. Прогноз на МЕСЯЦ на основе точных аспектов.
+            prompt = f"""Ты — астролог. Прогноз на МЕСЯЦ.
 
 📅 {now.strftime('%d.%m.%Y')}
 
-ПРАВИЛА: Основывайся ТОЛЬКО на аспектах. Сходящийся = впереди, расходящийся = прошло.
-Используй нейтральные обращения (человек/партнёр), избегай указания пола.
+ПРАВИЛА: Только аспекты. Сходящийся = впереди, расходящийся = прошло. Нейтральные обращения.
 
 СТРУКТУРА:
-❤️ ЛЮБОВЬ (4 предложения)
-💼 КАРЬЕРА (4 предложения)
-🏃 ЭНЕРГИЯ (3 предложения)
-🌟 СОВЕТ НА МЕСЯЦ (3 предложения)
+❤️ ЛЮБОВЬ (4 предл.)
+💼 КАРЬЕРА (4 предл.)
+🏃 ЭНЕРГИЯ (3 предл.)
+🌟 СОВЕТ НА МЕСЯЦ (3 предл.)
 
 ДАННЫЕ:
 {astro}
 {aspects_text}
 
-Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай."""
+Дай прогноз. Завершай каждое предложение точкой. Не обрывай."""
             max_tok = 2500
-        
-        # ===== ПРОГНОЗ НА НЕДЕЛЮ =====
         else:
-            # Формируем аспекты
-            aspects_text = ""
+            aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
             if transit_aspects_data:
-                aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
                 for i, asp in enumerate(transit_aspects_data[:8]):
                     house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
-                    aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
-            else:
-                aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
+                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} {asp['aspect']} с {asp['natal_planet']} — {asp['influence']}{house_info}\n"
+            else: aspects_text += "Нет точных аспектов.\n"
             
-            prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на {period} на основе ТОЧНЫХ математических аспектов.
+            prompt = f"""Ты — астролог. Прогноз на {period}.
 
-📅 ДАТА ПРОГНОЗА: {now.strftime('%d.%m.%Y')}
+📅 {now.strftime('%d.%m.%Y')}
 
-⚠️ ВАЖНЕЙШИЕ ПРАВИЛА:
-1. Основывай прогноз СТРОГО на предоставленных аспектах
-2. Для КАЖДОГО утверждения указывай КОНКРЕТНЫЙ аспект
-3. Сходящийся = событие впереди, расходящийся = прошло пик
-4. Учитывай ДОМА — они показывают СФЕРУ ЖИЗНИ
-5. Используй нейтральные обращения (человек/партнёр), избегай указания пола
+ПРАВИЛА: Только аспекты. Сходящийся = впереди. Нейтральные обращения.
 
-СТРУКТУРА ОТВЕТА:
-❤️ ЛЮБОВЬ И ОТНОШЕНИЯ (3-4 предложения)
-💼 КАРЬЕРА И ФИНАНСЫ (3-4 предложения)
-🏃 ЭНЕРГИЯ И ЗДОРОВЬЕ (2-3 предложения)
-🌟 ГЛАВНЫЙ СОВЕТ НА {period.upper()} (2-3 предложения)
+СТРУКТУРА:
+❤️ ЛЮБОВЬ (3-4 предл.)
+💼 КАРЬЕРА (3-4 предл.)
+🏃 ЭНЕРГИЯ (2-3 предл.)
+🌟 СОВЕТ НА {period.upper()} (2-3 предл.)
 
-АСТРО-ДАННЫЕ:
+ДАННЫЕ:
 {astro}
-
 {aspects_text}
 
-Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай текст на полуслове. Указывай градусы и направление аспектов."""
+Дай прогноз. Завершай каждое предложение точкой."""
             max_tok = 1200 if d == 'f_week' else 700
         
         forecast = ai_client.ask(prompt, max_tokens=max_tok)
@@ -1208,53 +1108,24 @@ async def btn(update, ctx):
         if forecast:
             parts = ai_client.split_message(forecast)
             for i, part in enumerate(parts):
-                if i == 0:
-                    await update.effective_message.reply_text(f"🌟 *Прогноз на {ptitle}* 🌟\n\n{part}", reply_markup=overview_btn(), parse_mode='Markdown')
-                else:
-                    await update.effective_message.reply_text(part)
+                await update.effective_message.reply_text(
+                    f"🌟 *Прогноз на {ptitle}* 🌟\n\n{part}" if i == 0 else part,
+                    reply_markup=overview_btn() if i == 0 else None,
+                    parse_mode='Markdown'
+                )
         else:
-            if d == 'f_day':
-                ptitle_fb = f'сегодня ({now.strftime("%d.%m.%Y")})'
-            else:
-                ptitle_fb = ptitle
-            fallback = f"""🌟 *Прогноз на {ptitle_fb}*
-
-"""
-            if transit_aspects_data:
-                if d == 'f_day':
-                    moon_aspects = [a for a in transit_aspects_data if a['transit_planet'] == 'Луна']
-                    for asp in moon_aspects[:3]:
-                        house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                        fallback += f"{asp['symbol']} Луна {asp['aspect']} с {asp['natal_planet']} натальным{house_info} — {asp['influence']}\n"
-                else:
-                    for asp in transit_aspects_data[:4]:
-                        house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                        fallback += f"{asp['symbol']} {asp['transit_planet']} {asp['aspect']} с {asp['natal_planet']} натальным{house_info} — {asp['influence']}\n"
-            
-            love_text = {'Овен': 'время страсти и новых знакомств', 'Телец': 'время чувственности и стабильности', 'Близнецы': 'время общения и флирта', 'Рак': 'время глубоких эмоций и заботы', 'Лев': 'время романтики и внимания', 'Дева': 'время практичности в отношениях', 'Весы': 'время гармонии и партнёрства', 'Скорпион': 'время страсти и трансформации', 'Стрелец': 'время приключений и свободы', 'Козерог': 'время серьёзных решений', 'Водолей': 'время необычных знакомств', 'Рыбы': 'время романтики и вдохновения'}
-            career_text = {'Овен': 'проявите инициативу, вас заметят', 'Телец': 'сосредоточьтесь на финансах', 'Близнецы': 'делитесь идеями, налаживайте связи', 'Рак': 'работайте в комфортном темпе', 'Лев': 'берите лидерство, вас поддержат', 'Дева': 'время анализа и планирования', 'Весы': 'ищите баланс и партнёрство', 'Скорпион': 'копайте глубже, найдёте скрытое', 'Стрелец': 'расширяйте горизонты, учитесь', 'Козерог': 'стройте долгосрочные планы', 'Водолей': 'внедряйте инновации', 'Рыбы': 'доверьтесь интуиции в делах'}
-            
-            fallback += f"""
-❤️ *Любовь:* {love_text.get(transits['Венера']['sign'], 'благоприятный период')}
-
-💼 *Карьера:* {career_text.get(transits['Марс']['sign'], 'сосредоточьтесь на задачах')}
-
-🌟 *Совет:* {'Следуйте за Луной — она сегодня в ' + moon_sign if d == 'f_day' else 'Обратите внимание на указанные выше точные аспекты — они показывают главные тенденции ' + period[:4]}.
-"""
+            fallback = f"🌟 *Прогноз на {ptitle}*\n\n❤️ Любовь: благоприятный период\n💼 Карьера: сосредоточьтесь на задачах\n🌟 Совет: слушайте интуицию."
             await update.effective_message.reply_text(fallback, reply_markup=overview_btn(), parse_mode='Markdown')
+    
     elif d == 'natal':
         if uid not in users: 
             await q.edit_message_text(
-                "🌟 *Натальная карта*\n\n"
-                "Выберите формат ввода данных своего рождения:\n\n"
-                "📝 *С временем:* `15.05.1990 14:30 Москва`\n"
-                "📝 *Без времени:* `15.05.1990 Москва`",
+                "🌟 *Натальная карта*\n\nВыберите формат ввода:\n\n📝 `15.05.1990 14:30 Москва`\n📝 `15.05.1990 Москва`",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("📝 С временем", callback_data="newdata")],
                     [InlineKeyboardButton("📝 Без времени", callback_data="newdata_noon")],
                     [InlineKeyboardButton("🔙 Назад", callback_data="back")]
-                ]),
-                parse_mode='Markdown'
+                ]), parse_mode='Markdown'
             )
             return
         u = users[uid]
@@ -1262,151 +1133,43 @@ async def btn(update, ctx):
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         aspects = get_aspects(natal)
         
-        asc_sign = natal['Асцендент']['sign']
-        asc_deg = natal['Асцендент']['degree']
-        sun_sign = natal['Солнце']['sign']
-        sun_deg = natal['Солнце']['degree']
-        moon_sign = natal['Луна']['sign']
-        moon_deg = natal['Луна']['degree']
-        mer_sign = natal['Меркурий']['sign']
-        mer_deg = natal['Меркурий']['degree']
-        ven_sign = natal['Венера']['sign']
-        ven_deg = natal['Венера']['degree']
-        mar_sign = natal['Марс']['sign']
-        mar_deg = natal['Марс']['degree']
-        jup_sign = natal['Юпитер']['sign']
-        sat_sign = natal['Сатурн']['sign']
-        ura_sign = natal['Уран']['sign']
-        nep_sign = natal['Нептун']['sign']
-        plu_sign = natal['Плутон']['sign']
-        rahu_sign = natal['Раху']['sign']
-        rahu_deg = natal['Раху']['degree']
-        ketu_sign = natal['Кету']['sign']
-        ketu_deg = natal['Кету']['degree']
+        asc_sign = natal['Асцендент']['sign']; sun_sign = natal['Солнце']['sign']
+        moon_sign = natal['Луна']['sign']; mer_sign = natal['Меркурий']['sign']
+        ven_sign = natal['Венера']['sign']; mar_sign = natal['Марс']['sign']
+        rahu_sign = natal['Раху']['sign']; ketu_sign = natal['Кету']['sign']
         
         def get_house(planet_lon, houses):
             for i, h in enumerate(houses):
                 next_h = houses[(i+1) % 12]
                 if h['lon'] <= next_h['lon']:
-                    if h['lon'] <= planet_lon < next_h['lon']:
-                        return h['house_num']
+                    if h['lon'] <= planet_lon < next_h['lon']: return h['house_num']
                 else:
-                    if planet_lon >= h['lon'] or planet_lon < next_h['lon']:
-                        return h['house_num']
+                    if planet_lon >= h['lon'] or planet_lon < next_h['lon']: return h['house_num']
             return 1
         
         sun_house = get_house(natal['Солнце']['lon'], natal['houses'])
         moon_house = get_house(natal['Луна']['lon'], natal['houses'])
-        mer_house = get_house(natal['Меркурий']['lon'], natal['houses'])
-        ven_house = get_house(natal['Венера']['lon'], natal['houses'])
-        mar_house = get_house(natal['Марс']['lon'], natal['houses'])
-        jup_house = get_house(natal['Юпитер']['lon'], natal['houses'])
-        sat_house = get_house(natal['Сатурн']['lon'], natal['houses'])
-        rahu_house = get_house(natal['Раху']['lon'], natal['houses'])
-        ketu_house = get_house(natal['Кету']['lon'], natal['houses'])
-        
-        def get_planet_aspects(planet_name):
-            planet_aspects = []
-            for a in aspects:
-                if planet_name in a:
-                    planet_aspects.append(a)
-            return planet_aspects
-        
-        sun_aspects = get_planet_aspects('Солнце')
-        moon_aspects = get_planet_aspects('Луна')
-        mer_aspects = get_planet_aspects('Меркурий')
-        ven_aspects = get_planet_aspects('Венера')
-        mar_aspects = get_planet_aspects('Марс')
-        
-        asc_ruler = {
-            'Овен': 'Марс', 'Телец': 'Венера', 'Близнецы': 'Меркурий',
-            'Рак': 'Луна', 'Лев': 'Солнце', 'Дева': 'Меркурий',
-            'Весы': 'Венера', 'Скорпион': 'Плутон', 'Стрелец': 'Юпитер',
-            'Козерог': 'Сатурн', 'Водолей': 'Уран', 'Рыбы': 'Нептун',
-        }
-        ruler_name = asc_ruler.get(asc_sign, '')
-        ruler_sign = natal[ruler_name]['sign'] if ruler_name in natal else ''
-        ruler_house = get_house(natal[ruler_name]['lon'], natal['houses']) if ruler_name in natal else ''
         
         astro_data = f"""
 *НАТАЛЬНАЯ КАРТА*
 📍 {u['city'].title()} | 🕐 {u['hour']:02d}:{u['minute']:02d}
 
-*1. АСЦЕНДЕНТ:*
-ASC в {asc_sign} {asc_deg}° (1 дом)
-Управитель ASC: {ruler_name} в {ruler_sign} ({ruler_house} дом)
-
-*2. ЛУНА:*
-🌙 в {moon_sign} {moon_deg}° ({moon_house} дом)
-Аспекты Луны: {', '.join(moon_aspects) if moon_aspects else 'нет значимых'}
-
-*3. СОЛНЦЕ:*
-☀ в {sun_sign} {sun_deg}° ({sun_house} дом)
-Аспекты Солнца: {', '.join(sun_aspects) if sun_aspects else 'нет значимых'}
-
-*4. МЕРКУРИЙ:*
-☿ в {mer_sign} {mer_deg}° ({mer_house} дом)
-Аспекты Меркурия: {', '.join(mer_aspects) if mer_aspects else 'нет значимых'}
-
-*5. ВЕНЕРА:*
-♀ в {ven_sign} {ven_deg}° ({ven_house} дом)
-Аспекты Венеры: {', '.join(ven_aspects) if ven_aspects else 'нет значимых'}
-
-*6. МАРС:*
-♂ в {mar_sign} {mar_deg}° ({mar_house} дом)
-Аспекты Марса: {', '.join(mar_aspects) if mar_aspects else 'нет значимых'}
-
-*7. КАРМИЧЕСКИЕ УЗЛЫ:*
-☊ Раху в {rahu_sign} {rahu_deg}° ({rahu_house} дом)
-☋ Кету в {ketu_sign} {ketu_deg}° ({ketu_house} дом)
-
-*Другие планеты:*
-♃ Юпитер в {jup_sign} ({jup_house} дом)
-♄ Сатурн в {sat_sign} ({sat_house} дом)
-♅ Уран в {ura_sign}
-♆ Нептун в {nep_sign}
-♇ Плутон в {plu_sign}
+ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
+🌙 Луна в {moon_sign} ({moon_house} дом)
+☿ Меркурий в {mer_sign} | ♀ Венера в {ven_sign} | ♂ Марс в {mar_sign}
+☊ Раху в {rahu_sign} | ☋ Кету в {ketu_sign}
 """
-        
-        prompt = f"""Ты — профессиональный астролог с 12-летним опытом. Сделай глубокий разбор натальной карты по западной астрологии.
-Используй нейтральные обращения (человек/партнёр), избегай указания пола.
+        prompt = f"""Ты — астролог. Сделай разбор натальной карты. Нейтральные обращения.
 
-СТРУКТУРА ОТВЕТА (разбей по темам):
+СТРУКТУРА (по 4-6 предл. на раздел):
+🌟 АСЦЕНДЕНТ | 🌙 ЛУНА | ☀ СОЛНЦЕ | ☿ МЕРКУРИЙ | ♀ ВЕНЕРА | ♂ МАРС | ☊ КАРМИЧЕСКИЕ УЗЛЫ
 
-🌟 *1. АСЦЕНДЕНТ — как вас воспринимают:*
-Раскрой: как человека воспринимают при первой встрече, какие качества показывать чтобы получать интересные события от Вселенной. Формула успеха через знак ASC и дом управителя ASC.
-
-🌙 *2. ЛУНА — эмоции и потребности:*
-Раскрой: базовые эмоции и потребности, реакции, через что чувствует комфорт и безопасность. Негативные аспекты — источники напряжения. Позитивные аспекты — возможности.
-
-☀ *3. СОЛНЦЕ — самооценка и таланты:*
-Раскрой: в чём особенность и индивидуальность, таланты, как самооценка завязана, что делать для реализации потенциала. Сложности через негативные аспекты.
-
-☿ *4. МЕРКУРИЙ — общение и интеллект:*
-Раскрой: стиль общения, навыки коммуникации, как воспринимает информацию, о чём интересно говорить, область интересов.
-
-♀ *5. ВЕНЕРА — любовь и стиль:*
-Раскрой: как выражает чувства, язык любви, какой в любви, что нравится, как раскрыть женственность, стиль одежды.
-
-♂ *6. МАРС — мотивация и действия:*
-Раскрой: что мотивирует, поведение в кризисе и стрессе, как начать действовать, как ведёт себя в конкуренции.
-
-☊ *7. КАРМИЧЕСКИЕ УЗЛЫ — предназначение:*
-Раскрой: куда двигаться по Северному узлу, какие качества нарабатывать. Что оставить в прошлом по Южному узлу.
-
-ПРАВИЛА:
-- Основывайся ТОЛЬКО на данных карты
-- Пиши развёрнуто, каждый раздел 4-6 предложений
-- Указывай причину: "потому что Марс в Овне..."
-- Используй профессиональные термины с пояснениями
-
-ДАННЫЕ КАРТЫ:
+ДАННЫЕ:
 {astro_data}
 
-Сделай полный разбор. 30-40 предложений. Используй эмодзи."""
+Сделай разбор. 30-40 предложений."""
         
         forecast = ai_client.ask(prompt, max_tokens=1500)
-        
         birth_time_str = f"{u['hour']:02d}:{u['minute']:02d}"
         img = draw_natal_chart_pro(natal, u['city'], birth_time_str)
         await update.effective_message.reply_photo(photo=img)
@@ -1414,73 +1177,37 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
         if forecast:
             parts = ai_client.split_message(forecast)
             for i, part in enumerate(parts):
-                if i == len(parts)-1:
-                    await update.effective_message.reply_text(part, reply_markup=overview_btn(), parse_mode='Markdown')
-                else:
-                    await update.effective_message.reply_text(part)
+                await update.effective_message.reply_text(part, reply_markup=overview_btn() if i == len(parts)-1 else None, parse_mode='Markdown')
         else:
-            basic_text = f"""🌟 *Натальная карта*
-📍 {u['city'].title()} | 🕐 {u['hour']:02d}:{u['minute']:02d}
-
-*Планеты в знаках:*
-☀ Солнце: *{sun_sign}* {sun_deg}° ({sun_house} дом)
-🌙 Луна: *{moon_sign}* {moon_deg}° ({moon_house} дом)
-☿ Меркурий: *{mer_sign}* {mer_deg}° ({mer_house} дом)
-♀ Венера: *{ven_sign}* {ven_deg}° ({ven_house} дом)
-♂ Марс: *{mar_sign}* {mar_deg}° ({mar_house} дом)
-♃ Юпитер: *{jup_sign}* ({jup_house} дом)
-♄ Сатурн: *{sat_sign}* ({sat_house} дом)
-♅ Уран: *{ura_sign}*
-♆ Нептун: *{nep_sign}*
-♇ Плутон: *{plu_sign}*
-☊ Раху: *{rahu_sign}* ({rahu_house} дом)
-☋ Кету: *{ketu_sign}* ({ketu_house} дом)
-
-⬆ ASC: *{asc_sign}* | Управитель: {ruler_name} в {ruler_sign}
-
-*Аспекты:* {', '.join(aspects[:6]) if aspects else 'нет значимых'}
-
-⚠️ Подробная интерпретация временно недоступна. Попробуйте позже."""
-            await update.effective_message.reply_text(basic_text, reply_markup=overview_btn(), parse_mode='Markdown')
+            await update.effective_message.reply_text(f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n\n☀ Солнце: *{sun_sign}*\n🌙 Луна: *{moon_sign}*\n⬆ ASC: *{asc_sign}*\n\n⚠️ Интерпретация временно недоступна.", reply_markup=overview_btn(), parse_mode='Markdown')
+    
     elif d == 'houses':
-        if uid not in users: 
-            await q.edit_message_text(
-                "🏠 *Дома гороскопа*\n\n"
-                "Для расчёта домов нужно точное время рождения.\n\n"
-                "📝 *Формат:* `15.05.1990 14:30 Москва`",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📝 Ввести данные своего рождения", callback_data="newdata")],
-                    [InlineKeyboardButton("🔙 Назад", callback_data="back")]
-                ]),
-                parse_mode='Markdown'
-            )
-            return
-        u = users[uid]; natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
-        text = f"🏠 *Дома гороскопа*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d} (местное)\n\n"
-        for house in natal['houses']: text += f"*{house['house_num']} дом*: {SIGN_EMOJI.get(house['sign'],'')} {house['sign']} {house['degree']}°\n"
-        text += f"\n⬆ Асцендент: *{natal['Асцендент']['sign']}* {natal['Асцендент']['degree']}°"
-        await q.edit_message_text(text, reply_markup=overview_btn(), parse_mode='Markdown')
+        if uid not in users: await q.edit_message_text("🏠 *Дома гороскопа*\n\nНужно точное время рождения.\n📝 `15.05.1990 14:30 Москва`", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 Ввести данные", callback_data="newdata")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]), parse_mode='Markdown')
+        else:
+            u = users[uid]; natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
+            text = f"🏠 *Дома гороскопа*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d}\n\n"
+            for house in natal['houses']: text += f"*{house['house_num']} дом*: {SIGN_EMOJI.get(house['sign'],'')} {house['sign']} {house['degree']}°\n"
+            text += f"\n⬆ Асцендент: *{natal['Асцендент']['sign']}* {natal['Асцендент']['degree']}°"
+            await q.edit_message_text(text, reply_markup=overview_btn(), parse_mode='Markdown')
+    
     elif d == 'transits':
-        transits = calc_transits()
-        now = get_current_time()
+        transits = calc_transits(); now = get_current_time()
         text = f"🪐 *Транзиты*\n📅 {now.strftime('%d.%m.%Y %H:%M')} UTC\n\n"
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Раху','Кету']:
             if p in transits: text += f"{SIGN_EMOJI.get(transits[p]['sign'],'')} {p}: *{transits[p]['sign']}* {transits[p]['degree']}°\n"
         await q.edit_message_text(text, reply_markup=overview_btn(), parse_mode='Markdown')
+    
     elif d == 'compat':
         ctx.user_data['mode'] = 'compat'
         await q.edit_message_text("💑 Два знака: *Овен Телец*", reply_markup=overview_btn(), parse_mode='Markdown')
+    
     elif d == 'moon':
-        transits = calc_transits()
-        now = get_current_time()
+        transits = calc_transits(); now = get_current_time()
         phase = now.day % 8
         phases = {0:"🌑 Новолуние",1:"🌒",2:"🌓",3:"🌔",4:"🌕 Полнолуние",5:"🌖",6:"🌗",7:"🌘"}
-        text = f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phases.get(phase, '🌑')}\n"
-        if 'Луна' in transits: text += f"Знак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
-        if 'Раху' in transits:
-            text += f"\n☊ Раху: *{transits['Раху']['sign']}* {transits['Раху']['degree']}°"
-            text += f"\n☋ Кету: *{transits['Кету']['sign']}* {transits['Кету']['degree']}°"
+        text = f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phases.get(phase, '🌑')}\nЗнак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
         await q.edit_message_text(text, reply_markup=overview_btn(), parse_mode='Markdown')
+    
     elif d == 'daily':
         now = get_current_time()
         text = f"📅 *Сегодня* ({now.strftime('%d.%m.%Y')})\n\n"
@@ -1489,82 +1216,40 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
             text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
             if 'Солнце' in transits and sign == transits['Солнце']['sign']: text += "☀️ Солнце в знаке!\n"
             elif 'Луна' in transits and sign == transits['Луна']['sign']: text += "🌙 Луна в знаке\n"
-            elif 'Раху' in transits and sign == transits['Раху']['sign']: text += "☊ Раху в знаке\n"
-            elif 'Кету' in transits and sign == transits['Кету']['sign']: text += "☋ Кету в знаке\n"
             else: text += "✨ Хороший день\n"
         await q.edit_message_text(text[:4000], reply_markup=overview_btn(), parse_mode='Markdown')
-    elif d == 'help':
-        await help_command(update, ctx)
+    
     elif d == 'new_client':
-        # Очищаем данные текущего пользователя и начинаем заново
-        if uid in users:
-            del users[uid]
-            save_users()
-        ctx.user_data.clear()
-        ctx.user_data['mode'] = ''
-        await q.edit_message_text(
-            "🔄 *Данные очищены!*\n\n"
-            "Введите данные своего рождения:\n"
-            "`ДД.ММ.ГГГГ ЧЧ:ММ Город`\n\n"
-            "Пример: `15.05.1990 14:30 Москва`",
-            reply_markup=menu_btn(),
-            parse_mode='Markdown'
-        )
+        if uid in users: del users[uid]; save_users()
+        ctx.user_data.clear(); ctx.user_data['mode'] = ''
+        await q.edit_message_text("🔄 *Данные очищены!*\n\nВведите данные своего рождения:\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=menu_btn(), parse_mode='Markdown')
+    
     elif d == 'delete_confirm':
-        # Запрос подтверждения удаления
-        kb = [
-            [InlineKeyboardButton("✅ Да, удалить всё", callback_data="delete_yes")],
-            [InlineKeyboardButton("❌ Нет, отмена", callback_data="back")]
-        ]
-        await q.edit_message_text(
-            "⚠️ *Вы уверены, что хотите удалить ВСЕ данные?*\n\n"
-            "Это действие нельзя отменить. Все расчёты и сохранённые данные будут удалены.",
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode='Markdown'
-        )
+        kb = [[InlineKeyboardButton("✅ Да, удалить всё", callback_data="delete_yes")], [InlineKeyboardButton("❌ Нет, отмена", callback_data="back")]]
+        await q.edit_message_text("⚠️ *Удалить ВСЕ данные?*\n\nЭто действие нельзя отменить.", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+    
     elif d == 'delete_yes':
-        # Удаляем данные
-        if uid in users:
-            del users[uid]
-            save_users()
-        ctx.user_data.clear()
-        ctx.user_data['mode'] = ''
-        await q.edit_message_text(
-            "✅ *Все данные удалены!*\n\n"
-            "Вы начинаете с чистого листа. Введите данные своего рождения:\n"
-            "`ДД.ММ.ГГГГ ЧЧ:ММ Город`",
-            reply_markup=menu_btn(),
-            parse_mode='Markdown'
-        )
+        if uid in users: del users[uid]; save_users()
+        ctx.user_data.clear(); ctx.user_data['mode'] = ''
+        await q.edit_message_text("✅ *Все данные удалены!*\n\nВведите данные своего рождения:\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=menu_btn(), parse_mode='Markdown')
+    
     elif d == 'subscribe_info':
-        await q.edit_message_text(
-            "💎 *Подписка*\n\n"
-            "Скоро здесь будет информация о платных возможностях.\n\n"
-            "А пока — все функции бота бесплатны!",
-            reply_markup=overview_btn(),
-            parse_mode='Markdown'
-        )
+        await q.edit_message_text("💎 *Подписка*\n\nСкоро здесь будет информация о платных возможностях.\n\nА пока — все функции бота бесплатны!", reply_markup=overview_btn(), parse_mode='Markdown')
+    
     elif d == 'support':
         await q.edit_message_text(
             "💬 *Поддержка*\n\n"
             "Если у вас есть вопросы, предложения или нужна помощь — напишите нам:\n\n"
-            "👉@astro_chat_helpbot\n\n"
+            "👉 @astro_chat_help\n\n"
             "Мы ответим в ближайшее время!",
             reply_markup=overview_btn(),
             parse_mode='Markdown'
         )
-    elif d == 'newdata':
-        ctx.user_data['mode'] = 'newdata'
-        await q.edit_message_text("📝 *Введите данные своего рождения:*\n\n*С временем:* `ДД.ММ.ГГГГ ЧЧ:ММ Город`\nПример: `15.05.1990 14:30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
-    elif d == 'newdata_noon':
-        ctx.user_data['mode'] = 'newdata_noon'
-        await q.edit_message_text("📝 *Введите дату своего рождения и город:*\n\nФормат: `ДД.ММ.ГГГГ Город`\nПример: `15.05.1990 Москва`\n\nВремя будет установлено на 12:00", reply_markup=back_btn(), parse_mode='Markdown')
-    elif d == 'newdata_natal':
-        ctx.user_data['mode'] = 'newdata'
-        await q.edit_message_text("📝 *Введите новые данные своего рождения:*\n\n📝 *С временем:* `15.05.1990 14:30 Москва`\n📝 *Без времени:* `15.05.1990 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
-    elif d == 'back':
-        ctx.user_data['mode'] = ''
-        await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
+    
+    elif d == 'newdata': ctx.user_data['mode'] = 'newdata'; await q.edit_message_text("📝 *Введите данные своего рождения:*\n\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=back_btn(), parse_mode='Markdown')
+    elif d == 'newdata_noon': ctx.user_data['mode'] = 'newdata_noon'; await q.edit_message_text("📝 *Введите дату рождения и город:*\n`ДД.ММ.ГГГГ Город`", reply_markup=back_btn(), parse_mode='Markdown')
+    elif d == 'newdata_natal': ctx.user_data['mode'] = 'newdata'; await q.edit_message_text("📝 *Введите новые данные:*\n`15.05.1990 14:30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
+    elif d == 'back': ctx.user_data['mode'] = ''; await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
 
 async def msg(update, ctx):
     t = update.message.text.strip(); m = ctx.user_data.get('mode',''); uid = update.effective_user.id
@@ -1572,7 +1257,7 @@ async def msg(update, ctx):
     if m == 'compat':
         parts = t.title().split()
         if len(parts)==2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
-            prompt = f"Совместимость {parts[0]} и {parts[1]}. Процент и 2-3 предложения. Используй нейтральные обращения."
+            prompt = f"Совместимость {parts[0]} и {parts[1]}. Процент и 2-3 предложения. Нейтральные обращения."
             fc = ai_client.ask(prompt) or "70% — Хорошая совместимость"
             ctx.user_data['mode'] = ''
             await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}", reply_markup=overview_btn(), parse_mode='Markdown')
@@ -1581,64 +1266,41 @@ async def msg(update, ctx):
         return
     
     try:
-        # Заменяем двоеточие во времени на пробел для единообразия
         t_clean = t
         parts_check = t.split()
         if len(parts_check) >= 2 and ':' in parts_check[1] and parts_check[1].count(':') == 1:
-            parts_check[1] = parts_check[1].replace(':', ' ')
-            t_clean = ' '.join(parts_check)
+            parts_check[1] = parts_check[1].replace(':', ' '); t_clean = ' '.join(parts_check)
         
         parts = t_clean.split()
         
         if len(parts) >= 3:
-            date_part = parts[0]
-            day, month, year = map(int, date_part.split('.'))
-            
-            if parts[1].isdigit() and parts[2].isdigit():
-                hour = int(parts[1])
-                minute = int(parts[2])
-                city_str = ' '.join(parts[3:]) if len(parts) > 3 else 'москва'
-            elif parts[1].isdigit():
-                hour = int(parts[1])
-                minute = 0
-                city_str = ' '.join(parts[2:]) if len(parts) > 2 else 'москва'
-            else:
-                hour = 12
-                minute = 0
-                city_str = ' '.join(parts[1:]) if len(parts) > 1 else 'москва'
-        
+            date_part = parts[0]; day, month, year = map(int, date_part.split('.'))
+            if parts[1].isdigit() and parts[2].isdigit(): hour, minute = int(parts[1]), int(parts[2]); city_str = ' '.join(parts[3:]) if len(parts) > 3 else 'москва'
+            elif parts[1].isdigit(): hour, minute = int(parts[1]), 0; city_str = ' '.join(parts[2:]) if len(parts) > 2 else 'москва'
+            else: hour, minute = 12, 0; city_str = ' '.join(parts[1:]) if len(parts) > 1 else 'москва'
         elif '.' in t_clean and len(t_clean.split('.')) == 3 and ' ' in t_clean:
-            parts_dot = t_clean.split()
-            date_part = parts_dot[0]
-            day, month, year = map(int, date_part.split('.'))
-            hour, minute = 12, 0
+            parts_dot = t_clean.split(); date_part = parts_dot[0]
+            day, month, year = map(int, date_part.split('.')); hour, minute = 12, 0
             city_str = ' '.join(parts_dot[1:]) if len(parts_dot) > 1 else 'москва'
-        
         elif '.' in t_clean and len(t_clean.split('.')) == 3:
             day, month, year = map(int, t_clean.split('.')); hour, minute = 12, 0; city_str = 'москва'
+        else: raise ValueError("Неверный формат")
         
-        else:
-            raise ValueError("Неверный формат")
-        
-        print(f"DEBUG PARSING: date={day}.{month}.{year}, time={hour}:{minute}, city={city_str}")
-        
-        validate_date(day, month, year)
-        validate_time(hour, minute)
-        
+        validate_date(day, month, year); validate_time(hour, minute)
         lat, lon, city_name = parse_city(city_str); sign = get_zodiac_sign(day, month)
         users[uid] = {'sign':sign,'day':day,'month':month,'year':year,'hour':hour,'minute':minute,'lat':lat,'lon':lon,'city':city_name}
         save_users()
         
         kb = [[InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
               [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
-              [InlineKeyboardButton("🏠 Дома гороскопа", callback_data="houses")],
+              [InlineKeyboardButton("🏠 Дома", callback_data="houses")],
               [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
               [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata_natal")],
               [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
         await update.message.reply_text(f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     
     except ValueError as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы ввода данных своего рождения:\n• *15.05.1990*\n• *15.05.1990 14:30*\n• *15.05.1990 14:30 Москва*\n• *15.05.1990 Москва*\n• *15.05.1990 14:30 Нижний Тагил*", reply_markup=back_btn(), parse_mode='Markdown')
+        await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы:\n• *15.05.1990*\n• *15.05.1990 14:30*\n• *15.05.1990 14:30 Москва*\n• *15.05.1990 Москва*", reply_markup=back_btn(), parse_mode='Markdown')
     except Exception as e:
         print(f"Ошибка: {e}")
         await update.message.reply_text("❌ Произошла ошибка.", reply_markup=back_btn(), parse_mode='Markdown')
@@ -1653,7 +1315,6 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     threading.Thread(target=run_keepalive, daemon=True).start()
     
-    # Запускаем бота поддержки в отдельном потоке, если есть токен
     if SUPPORT_TOKEN:
         support_app = Application.builder().token(SUPPORT_TOKEN).build()
         support_app.add_handler(CommandHandler('start', support_start))
