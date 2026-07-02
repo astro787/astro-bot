@@ -1286,7 +1286,7 @@ async def msg(update, ctx):
         return
     try:
         parts = t.split()
-        try:
+    try:
     parts = t.split()
     
     # Определяем, сколько частей — дата (1 часть), время (2 части), город (остальное)
