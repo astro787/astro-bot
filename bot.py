@@ -77,8 +77,7 @@ async def support_msg(update, ctx):
     if msg.startswith('/support_msg'):
         msg = msg.replace('/support_msg ', '', 1)
         if msg == '/support_msg':
-            await update.message.reply_text("💬 *Поддержка*\n\nНапишите ваш вопрос командой:\n`/support_msg ваш вопрос`", parse_mode='Markdown')
-            return
+            msg = "Пользователь открыл поддержку"
     
     text = f"📩 *Сообщение от пользователя*\n👤 *{user.full_name}* (@{user.username or 'нет'})\n🆔 `{user.id}`\n💬 {msg}\n\n_Ответить:_ `/reply {user.id} текст`"
     await ctx.bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode='Markdown')
@@ -352,12 +351,15 @@ async def btn(update, ctx):
         await q.edit_message_text("💎 *Подписка*\n\nСкоро здесь будет информация о платных возможностях.\n\nА пока — все функции бота бесплатны!", reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'support':
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💬 Написать астрологу", url="https://t.me/Astromasbot")],
+            [InlineKeyboardButton("🔙 Назад", callback_data="back")]
+        ])
         await q.edit_message_text(
             "💬 *Поддержка*\n\n"
-            "Напишите ваш вопрос прямо здесь командой:\n"
-            "`/support_msg ваш вопрос`\n\n"
+            "Нажмите кнопку ниже, чтобы перейти в чат и написать ваш вопрос.\n"
             "Астролог ответит вам лично!",
-            reply_markup=overview_btn(),
+            reply_markup=kb,
             parse_mode='Markdown'
         )
     
@@ -367,10 +369,17 @@ async def btn(update, ctx):
     elif d == 'back': ctx.user_data['mode'] = ''; await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
 
 async def msg(update, ctx):
-    t = update.message.text.strip(); m = ctx.user_data.get('mode',''); uid = update.effective_user.id
+    t = update.message.text.strip()
+    m = ctx.user_data.get('mode', '')
+    uid = update.effective_user.id
     
-    # Обработка команды поддержки
+    # Если сообщение начинается с /support_msg — отправляем в поддержку
     if t.startswith('/support_msg'):
+        await support_msg(update, ctx)
+        return
+    
+    # Если нет активного режима и сообщение не команда и не похоже на дату — отправляем в поддержку
+    if not m and not t.startswith('/') and '.' not in t:
         await support_msg(update, ctx)
         return
     
