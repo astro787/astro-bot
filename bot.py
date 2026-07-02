@@ -1240,7 +1240,7 @@ ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
         await q.edit_message_text(
             "💬 *Поддержка*\n\n"
             "Если у вас есть вопросы, предложения или нужна помощь — напишите нам:\n\n"
-            "👉 @astro_chat_help\n\n"
+            "👉 @astro_chat_helpbot\n\n"
             "Мы ответим в ближайшее время!",
             reply_markup=overview_btn(),
             parse_mode='Markdown'
