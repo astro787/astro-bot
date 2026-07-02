@@ -50,7 +50,7 @@ def cat_emoji():
     return random.choice(CAT_EMOJI)
 
 # ========== ID АДМИНА ДЛЯ ПОДДЕРЖКИ ==========
-ADMIN_ID = 123456789  # ЗАМЕНИ НА СВОЙ ID! Узнай у @userinfobot
+ADMIN_ID = 870114986  # ЗАМЕНИ НА СВОЙ ID! Узнай у @userinfobot
 
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
