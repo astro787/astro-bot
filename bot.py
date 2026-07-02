@@ -782,7 +782,7 @@ async def start(update, ctx):
     if ctx.args and ctx.args[0] == 'support':
         await update.message.reply_text(
             "💬 *Поддержка*\n\n"
-            "Напишите ваш вопрос прямо здесь, и астролог ответит вам лично!\n"
+            "Напишите ваш вопрос прямо здесь, \n"
             "Вернемся с ответом очень быстро.",
             parse_mode='Markdown'
         )
