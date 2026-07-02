@@ -585,7 +585,7 @@ def menu_btn():
         [InlineKeyboardButton("📅 Ежедневный гороскоп", callback_data="daily")],
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
         [InlineKeyboardButton("🗑 Удалить данные", callback_data="delete_confirm")],
-        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/astro_chat_help")],
+        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/ANLunarisbot")],
         [InlineKeyboardButton("ℹ️ Помощь", callback_data="help")]
     ])
 
@@ -594,7 +594,7 @@ def overview_btn():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🏠 В начало", callback_data="back")],
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
-        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/astro_chat_help")],
+        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/ANLunarisbot")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
     ])
 
