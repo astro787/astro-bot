@@ -377,6 +377,24 @@ PLANETS = {'Солнце': swe.SUN, 'Луна': swe.MOON, 'Меркурий': sw
 
 HOUSE_NAMES = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
 
+# Очистка повреждённых данных при запуске
+if os.path.exists(USERS_FILE):
+    try:
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            old_data = json.load(f)
+        has_broken = False
+        for uid, data in old_data.items():
+            if 'day' not in data:
+                has_broken = True
+                break
+        if has_broken:
+            os.remove(USERS_FILE)
+            print("🗑 Старый повреждённый файл users.json удалён")
+    except:
+        if os.path.exists(USERS_FILE):
+            os.remove(USERS_FILE)
+            print("🗑 Нечитаемый файл users.json удалён")
+
 load_users()
 atexit.register(save_users)
 
@@ -759,6 +777,17 @@ async def reply_cmd(update, ctx):
 # ===== ОСНОВНЫЕ ФУНКЦИИ БОТА =====
 async def start(update, ctx):
     """Приветствие с юридическими документами"""
+    
+    # Если пользователь пришёл из поддержки
+    if ctx.args and ctx.args[0] == 'support':
+        await update.message.reply_text(
+            "💬 *Поддержка*\n\n"
+            "Напишите ваш вопрос прямо здесь, и астролог ответит вам лично!\n"
+            "Вернемся с ответом очень быстро.",
+            parse_mode='Markdown'
+        )
+        return
+    
     ctx.user_data['mode'] = ''
     
     uid = update.effective_user.id
