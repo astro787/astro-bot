@@ -585,7 +585,7 @@ def menu_btn():
         [InlineKeyboardButton("📅 Ежедневный гороскоп", callback_data="daily")],
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
         [InlineKeyboardButton("🗑 Удалить данные", callback_data="delete_confirm")],
-        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/ANLunarisbot")],
+        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/astro_chat_help")],
         [InlineKeyboardButton("ℹ️ Помощь", callback_data="help")]
     ])
 
@@ -594,7 +594,7 @@ def overview_btn():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🏠 В начало", callback_data="back")],
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
-        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/ANLunarisbot")],
+        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/astro_chat_help")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
     ])
 
@@ -748,6 +748,9 @@ async def start(update, ctx):
 • 📅 Ежедневный гороскоп
 
 🌍 150+ городов мира | 🎯 Математическая точность
+
+*Для начала работы введите данные своего рождения:*
+`ДД.ММ.ГГГГ` или `ДД.ММ.ГГГГ 14:30 Москва`
 """
     await update.message.reply_text(welcome_text, reply_markup=menu_btn(), parse_mode='Markdown')
 
@@ -757,9 +760,10 @@ async def help_command(update, ctx):
 
 👤 *Автор:* Практикующий астролог с 12-летним стажем
 
-📝 *Форматы ввода данных:*
+📝 *Форматы ввода данных своего рождения:*
 • `ДД.ММ.ГГГГ` — полдень, Москва
 • `ДД.ММ.ГГГГ ЧЧ ММ` — Москва
+• `ДД.ММ.ГГГГ ЧЧ:ММ Город` (через двоеточие)
 • `ДД.ММ.ГГГГ ЧЧ ММ Город`
 
 🌍 *Примеры городов:*
@@ -856,8 +860,8 @@ async def btn(update, ctx):
         else:
             await q.edit_message_text(
                 "🔮 *Прогноз ИИ*\n\n"
-                "Выберите формат ввода:\n\n"
-                "📝 *С временем:* `15.05.1990 14 30 Москва`\n"
+                "Выберите формат ввода данных своего рождения:\n\n"
+                "📝 *С временем:* `15.05.1990 14:30 Москва`\n"
                 "📝 *Без времени:* `15.05.1990 Москва`",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("📝 С временем", callback_data="newdata")],
@@ -867,7 +871,7 @@ async def btn(update, ctx):
                 parse_mode='Markdown'
             )
     elif d.startswith('f_'):
-        if uid not in users: await q.message.reply_text("Сначала введите данные!"); return
+        if uid not in users: await q.message.reply_text("Сначала введите данные своего рождения!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         now = get_current_time()
         
@@ -1011,8 +1015,8 @@ async def btn(update, ctx):
         if uid not in users: 
             await q.edit_message_text(
                 "🌟 *Натальная карта*\n\n"
-                "Выберите формат ввода:\n\n"
-                "📝 *С временем:* `15.05.1990 14 30 Москва`\n"
+                "Выберите формат ввода данных своего рождения:\n\n"
+                "📝 *С временем:* `15.05.1990 14:30 Москва`\n"
                 "📝 *Без времени:* `15.05.1990 Москва`",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("📝 С временем", callback_data="newdata")],
@@ -1168,7 +1172,7 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
 ДАННЫЕ КАРТЫ:
 {astro_data}
 
-Сделай полный разбор. 20-30 предложений. Используй эмодзи."""
+Сделай полный разбор. 30-40 предложений. Используй эмодзи."""
         
         forecast = ai_client.ask(prompt, max_tokens=1500)
         
@@ -1212,9 +1216,9 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
             await q.edit_message_text(
                 "🏠 *Дома гороскопа*\n\n"
                 "Для расчёта домов нужно точное время рождения.\n\n"
-                "📝 *Формат:* `15.05.1990 14 30 Москва`",
+                "📝 *Формат:* `15.05.1990 14:30 Москва`",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📝 Ввести данные", callback_data="newdata")],
+                    [InlineKeyboardButton("📝 Ввести данные своего рождения", callback_data="newdata")],
                     [InlineKeyboardButton("🔙 Назад", callback_data="back")]
                 ]),
                 parse_mode='Markdown'
@@ -1269,9 +1273,9 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
         ctx.user_data['mode'] = ''
         await q.edit_message_text(
             "🔄 *Данные очищены!*\n\n"
-            "Введите новые данные:\n"
-            "`ДД.ММ.ГГГГ ЧЧ ММ Город`\n\n"
-            "Пример: `15.05.1990 14 30 Москва`",
+            "Введите данные своего рождения:\n"
+            "`ДД.ММ.ГГГГ ЧЧ:ММ Город`\n\n"
+            "Пример: `15.05.1990 14:30 Москва`",
             reply_markup=menu_btn(),
             parse_mode='Markdown'
         )
@@ -1296,8 +1300,8 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
         ctx.user_data['mode'] = ''
         await q.edit_message_text(
             "✅ *Все данные удалены!*\n\n"
-            "Вы начинаете с чистого листа. Введите дату рождения:\n"
-            "`ДД.ММ.ГГГГ ЧЧ ММ Город`",
+            "Вы начинаете с чистого листа. Введите данные своего рождения:\n"
+            "`ДД.ММ.ГГГГ ЧЧ:ММ Город`",
             reply_markup=menu_btn(),
             parse_mode='Markdown'
         )
@@ -1311,13 +1315,13 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
         )
     elif d == 'newdata':
         ctx.user_data['mode'] = 'newdata'
-        await q.edit_message_text("📝 *Введите данные:*\n\n*С временем:* `ДД.ММ.ГГГГ ЧЧ ММ Город`\nПример: `15.05.1990 14 30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
+        await q.edit_message_text("📝 *Введите данные своего рождения:*\n\n*С временем:* `ДД.ММ.ГГГГ ЧЧ:ММ Город`\nПример: `15.05.1990 14:30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'newdata_noon':
         ctx.user_data['mode'] = 'newdata_noon'
-        await q.edit_message_text("📝 *Введите дату и город:*\n\nФормат: `ДД.ММ.ГГГГ Город`\nПример: `15.05.1990 Москва`\n\nВремя будет установлено на 12:00", reply_markup=back_btn(), parse_mode='Markdown')
+        await q.edit_message_text("📝 *Введите дату своего рождения и город:*\n\nФормат: `ДД.ММ.ГГГГ Город`\nПример: `15.05.1990 Москва`\n\nВремя будет установлено на 12:00", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'newdata_natal':
         ctx.user_data['mode'] = 'newdata'
-        await q.edit_message_text("📝 *Введите новые данные:*\n\n📝 *С временем:* `15.05.1990 14 30 Москва`\n📝 *Без времени:* `15.05.1990 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
+        await q.edit_message_text("📝 *Введите новые данные своего рождения:*\n\n📝 *С временем:* `15.05.1990 14:30 Москва`\n📝 *Без времени:* `15.05.1990 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'back':
         ctx.user_data['mode'] = ''
         await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
@@ -1337,7 +1341,15 @@ async def msg(update, ctx):
         return
     
     try:
-        parts = t.split()
+        # Заменяем двоеточие во времени на пробел для единообразия
+        # 19.03.1991 12:13 Курск → 19.03.1991 12 13 Курск
+        t_clean = t
+        parts_check = t.split()
+        if len(parts_check) >= 2 and ':' in parts_check[1] and parts_check[1].count(':') == 1:
+            parts_check[1] = parts_check[1].replace(':', ' ')
+            t_clean = ' '.join(parts_check)
+        
+        parts = t_clean.split()
         
         # Определяем, сколько частей — дата (1 часть), время (2 части), город (остальное)
         if len(parts) >= 3:
@@ -1358,15 +1370,15 @@ async def msg(update, ctx):
                 minute = 0
                 city_str = ' '.join(parts[1:]) if len(parts) > 1 else 'москва'
         
-        elif '.' in t and len(t.split('.')) == 3 and ' ' in t:
-            parts_dot = t.split()
+        elif '.' in t_clean and len(t_clean.split('.')) == 3 and ' ' in t_clean:
+            parts_dot = t_clean.split()
             date_part = parts_dot[0]
             day, month, year = map(int, date_part.split('.'))
             hour, minute = 12, 0
             city_str = ' '.join(parts_dot[1:]) if len(parts_dot) > 1 else 'москва'
         
-        elif '.' in t and len(t.split('.')) == 3:
-            day, month, year = map(int, t.split('.')); hour, minute = 12, 0; city_str = 'москва'
+        elif '.' in t_clean and len(t_clean.split('.')) == 3:
+            day, month, year = map(int, t_clean.split('.')); hour, minute = 12, 0; city_str = 'москва'
         
         else:
             raise ValueError("Неверный формат")
@@ -1389,7 +1401,7 @@ async def msg(update, ctx):
         await update.message.reply_text(f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     
     except ValueError as e:
-        await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы:\n• *15.05.1990*\n• *15.05.1990 14 30*\n• *15.05.1990 14 30 Москва*\n• *15.05.1990 Москва*\n• *15.05.1990 14 30 Нижний Тагил*", reply_markup=back_btn(), parse_mode='Markdown')
+        await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы ввода данных своего рождения:\n• *15.05.1990*\n• *15.05.1990 14:30*\n• *15.05.1990 14:30 Москва*\n• *15.05.1990 Москва*\n• *15.05.1990 14:30 Нижний Тагил*", reply_markup=back_btn(), parse_mode='Markdown')
     except Exception as e:
         print(f"Ошибка: {e}")
         await update.message.reply_text("❌ Произошла ошибка.", reply_markup=back_btn(), parse_mode='Markdown')
