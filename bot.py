@@ -584,10 +584,8 @@ def menu_btn():
         [InlineKeyboardButton("📅 Ежедневный гороскоп", callback_data="daily")],
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
         [InlineKeyboardButton("🗑 Удалить данные", callback_data="delete_confirm")],
-        [InlineKeyboardButton("📄 Политика конфиденциальности", callback_data="privacy")],
-        [InlineKeyboardButton("📋 Оферта", callback_data="offer")],
+        [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
         [InlineKeyboardButton("💬 Поддержка", url="https://t.me/ANLunarisbot")],
-        [InlineKeyboardButton("ℹ️ Помощь", callback_data="help")]
     ])
 
 def overview_btn():
@@ -763,11 +761,13 @@ async def start(update, ctx):
 ─────────────────────
 """
     
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 СТАРТ", callback_data="start_accept")]
-    ])
-    
-    await update.message.reply_text(welcome_text, reply_markup=kb, parse_mode='Markdown')
+    await update.message.reply_text(
+        welcome_text,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 СТАРТ", callback_data="start_accept")]
+        ]),
+        parse_mode='Markdown'
+    )
 
 async def help_command(update, ctx):
     help_text = """
@@ -863,7 +863,11 @@ async def btn(update, ctx):
     q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
     
     if d == 'start_accept':
-        await q.edit_message_text(
+        # Убираем кнопку СТАРТ (она "испаряется")
+        await q.edit_message_reply_markup(reply_markup=None)
+        
+        # Отправляем новое сообщение с меню
+        await q.message.reply_text(
             f"{cat_emoji()} *Добро пожаловать!*\n\n"
             "Для начала работы введите данные своего рождения:\n"
             "`ДД.ММ.ГГГГ` или `ДД.ММ.ГГГГ 14:30 Москва`\n\n"
@@ -882,7 +886,7 @@ async def btn(update, ctx):
             ctx.user_data['mode'] = 'fp'
             kb = [[InlineKeyboardButton("📅 День", callback_data="f_day"), InlineKeyboardButton("📆 Неделя", callback_data="f_week")],
                   [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
-            await q.edit_message_text(f"✨ *{users[uid]['sign']}* ✨\n\nПериод:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+            await q.edit_message_text(f"✨ *{users[uid]['sign']}* ✨\n\nВыберите период прогноза:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         else:
             await q.edit_message_text(
                 "🔮 *Прогноз ИИ*\n\n"
@@ -1339,80 +1343,6 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
             reply_markup=overview_btn(),
             parse_mode='Markdown'
         )
-    elif d == 'privacy':
-        privacy_text = """
-📄 *ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ*
-
-*1. Общие положения*
-Настоящая Политика конфиденциальности регулирует отношения между АстроБот (@Astromasbot) и пользователями сервиса.
-
-*2. Какие данные мы собираем*
-• Дату, время и место рождения (для астрологических расчётов)
-• Telegram ID пользователя (для сохранения истории расчётов)
-• Никакие другие персональные данные не собираются
-
-*3. Как мы используем данные*
-• Исключительно для астрологических расчётов
-• Данные хранятся в зашифрованном виде на сервере
-• Не передаются третьим лицам
-• Не используются для рекламы или рассылок
-
-*4. Хранение данных*
-• Данные хранятся до момента удаления пользователем
-• Пользователь может удалить все данные через кнопку «🗑 Удалить данные»
-
-*5. Безопасность*
-• Все расчёты производятся автоматически
-• Данные не просматриваются администратором
-• Используется защищённое соединение
-
-*6. Контакты*
-По всем вопросам: @ANLunarisbot
-
-*Дата обновления:* 02.07.2025
-"""
-        await q.edit_message_text(privacy_text, reply_markup=overview_btn(), parse_mode='Markdown')
-    
-    elif d == 'offer':
-        offer_text = """
-📋 *ОФЕРТА (ДОГОВОР-ОФЕРТА)*
-
-*1. Предмет оферты*
-Настоящий договор является публичной офертой на использование сервиса АстроБот (@Astromasbot).
-
-*2. Акцепт оферты*
-Использование бота (нажатие /start, ввод данных рождения, нажатие кнопок меню) является полным и безоговорочным акцептом настоящей оферты.
-
-*3. Описание услуг*
-Бот предоставляет следующие бесплатные услуги:
-• Расчёт натальной карты
-• Прогнозы на день/неделю/месяц
-• Расчёт совместимости
-• Лунный календарь
-• Ежедневный гороскоп
-
-*4. Права и обязанности сторон*
-*Пользователь имеет право:*
-• Использовать все функции бота
-• Удалить свои данные в любой момент
-• Обратиться в поддержку
-
-*Пользователь обязуется:*
-• Предоставлять достоверные данные
-• Не использовать бота в противоправных целях
-
-*5. Ограничение ответственности*
-• Бот предоставляет развлекательно-познавательную информацию
-• Астрологические прогнозы не являются научными предсказаниями
-• Администрация не несёт ответственности за действия пользователя на основе прогнозов
-
-*6. Контакты*
-По всем вопросам: @ANLunarisbot
-
-*Дата вступления в силу:* 02.07.2025
-"""
-        await q.edit_message_text(offer_text, reply_markup=overview_btn(), parse_mode='Markdown')
-    
     elif d == 'newdata':
         ctx.user_data['mode'] = 'newdata'
         await q.edit_message_text("📝 *Введите данные своего рождения:*\n\n*С временем:* `ДД.ММ.ГГГГ ЧЧ:ММ Город`\nПример: `15.05.1990 14:30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
