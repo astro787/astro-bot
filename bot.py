@@ -951,45 +951,104 @@ async def btn(update, ctx):
 *Натальные аспекты:* {', '.join(aspects[:4]) if aspects else 'нет значимых'}
 """
         
-        # Формируем аспекты — для дня только Луна
-        aspects_text = ""
-        if transit_aspects_data:
-            if d == 'f_day':
-                # Для дня — только аспекты Луны
-                aspects_text = "\n*АСПЕКТЫ ЛУНЫ СЕГОДНЯ:*\n"
-                moon_aspects = [a for a in transit_aspects_data if a['transit_planet'] == 'Луна']
-                if moon_aspects:
-                    for i, asp in enumerate(moon_aspects[:5]):
-                        house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                        aspects_text += f"{asp['symbol']} Луна {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
-                        aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
-                else:
-                    aspects_text += "Луна сегодня без точных аспектов — день гармоничный.\n"
-            else:
-                # Для недели и месяца — все аспекты
-                aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
-                for i, asp in enumerate(transit_aspects_data[:8]):
-                    house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
-                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
-                    aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
-        else:
-            aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
-        
-        # Промпты
+        # ===== ПРОГНОЗ НА ДЕНЬ: ПОЧАСОВОЙ РАСЧЁТ ЛУНЫ =====
         if d == 'f_day':
-            # Прогноз на день — ТОЛЬКО по Луне
-            prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на день, основанный ТОЛЬКО на положении Луны.
+            # Рассчитываем движение Луны в течение дня (каждый час)
+            moon_hourly = []
+            for h in range(24):
+                jd_hour = swe.julday(now.year, now.month, now.day, h + now.minute/60.0)
+                moon_lon = swe.calc_ut(jd_hour, swe.MOON)[0][0]
+                moon_sign_hour = sign_from_lon(moon_lon)
+                moon_deg_hour = degree_in_sign(moon_lon)
+                
+                # Находим дом Луны для этого часа
+                moon_house_hour = None
+                for house in natal['houses']:
+                    next_house = natal['houses'][(natal['houses'].index(house) + 1) % 12]
+                    if house['lon'] <= next_house['lon']:
+                        if house['lon'] <= moon_lon < next_house['lon']:
+                            moon_house_hour = house['house_num']
+                            break
+                    else:
+                        if moon_lon >= house['lon'] or moon_lon < next_house['lon']:
+                            moon_house_hour = house['house_num']
+                            break
+                
+                # Аспекты Луны к натальным планетам на этот час
+                hour_aspects = []
+                for n_name, n_data in natal.items():
+                    if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']:
+                        continue
+                    diff = abs(moon_lon - n_data['lon']) % 360
+                    if diff > 180:
+                        diff = 360 - diff
+                    
+                    aspect_name = None
+                    if diff <= 2: aspect_name = 'соединение'
+                    elif abs(diff - 60) <= 2: aspect_name = 'секстиль'
+                    elif abs(diff - 90) <= 2: aspect_name = 'квадрат'
+                    elif abs(diff - 120) <= 2: aspect_name = 'тригон'
+                    elif abs(diff - 180) <= 2: aspect_name = 'оппозиция'
+                    
+                    if aspect_name:
+                        hour_aspects.append(f"{h:02d}:00 — Луна {aspect_name} с {n_name} натальным ({n_data['sign']})")
+                
+                moon_hourly.append({
+                    'hour': h,
+                    'sign': moon_sign_hour,
+                    'degree': moon_deg_hour,
+                    'house': moon_house_hour,
+                    'aspects': hour_aspects
+                })
+            
+            # Находим важные события дня по Луне
+            sign_changes = []
+            current_sign = moon_hourly[0]['sign']
+            for entry in moon_hourly[1:]:
+                if entry['sign'] != current_sign:
+                    sign_changes.append(f"🌙 В {entry['hour']:02d}:00 Луна переходит в знак {entry['sign']}")
+                    current_sign = entry['sign']
+            
+            house_changes = []
+            current_house = moon_hourly[0]['house']
+            for entry in moon_hourly[1:]:
+                if entry['house'] != current_house:
+                    house_changes.append(f"🏠 В {entry['hour']:02d}:00 Луна переходит в {entry['house']} дом")
+                    current_house = entry['house']
+            
+            all_day_aspects = []
+            for entry in moon_hourly:
+                all_day_aspects.extend(entry['aspects'])
+            
+            # Уникальные аспекты без дубликатов
+            unique_aspects = list(set(all_day_aspects))
+            unique_aspects.sort()
+            
+            # Текстовое описание
+            aspects_text = f"""
+*ТОЧНОЕ ДВИЖЕНИЕ ЛУНЫ НА {now.strftime('%d.%m.%Y')}:*
+
+🌙 *Положение:* Луна в {moon_sign} {natal['Луна']['degree']}° (в {moon_house} доме)
+
+*Смена знака:*
+{chr(10).join(sign_changes) if sign_changes else 'Луна весь день в одном знаке — эмоциональный фон стабилен.'}
+
+*Смена дома:*
+{chr(10).join(house_changes) if house_changes else 'Луна весь день в одном доме — внимание сосредоточено на одной сфере.'}
+
+*Точные аспекты Луны:*
+{chr(10).join(unique_aspects[:6]) if unique_aspects else 'Луна сегодня без точных аспектов — день гармоничный.'}
+"""
+            
+            prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на день, основанный ТОЛЬКО на движении Луны.
 
 📅 ДАТА: {now.strftime('%d.%m.%Y')}
 
 ⚠️ ВАЖНЕЙШИЕ ПРАВИЛА:
-1. Анализируй ТОЛЬКО Луну: её знак, дом, аспекты к натальным планетам
-2. Луна — самая быстрая планета, она определяет настроение и события дня
-3. Для каждого утверждения указывай причину: "потому что Луна в {moon_sign} формирует {{аспект}} с вашим {{планета}}"
+1. Анализируй ТОЛЬКО Луну: её смену знака, смену дома, точные аспекты
+2. Указывай КОНКРЕТНОЕ ВРЕМЯ событий, используя данные о смене знака/дома
+3. Для каждого утверждения указывай причину: "потому что в 14:00 Луна переходит в знак Х..."
 4. Используй нейтральные обращения (человек/партнёр)
-
-ЛУНА СЕГОДНЯ:
-🌙 Луна в {moon_sign} {natal['Луна']['degree']}° (в {moon_house if moon_house else '?'} доме)
 
 {aspects_text}
 
@@ -998,23 +1057,33 @@ async def btn(update, ctx):
 
 СТРУКТУРА ОТВЕТА:
 🌙 *НАСТРОЕНИЕ ДНЯ* (2-3 предложения)
-- Как Луна влияет на эмоциональный фон
-- Что сегодня будет приносить комфорт
+- Как Луна влияет на эмоции, учитывая смену знака (если есть)
 
 ❤️ *ОТНОШЕНИЯ* (2 предложения)
-- Как Луна влияет на общение с близкими
-- На что обратить внимание в контактах
+- Лучшее время для общения (укажи часы)
 
 💼 *ДЕЛА И РАБОТА* (2 предложения)
-- Какие дела лучше делать при такой Луне
-- Чего лучше избегать
+- Лучшее время для работы (укажи часы)
 
 🌟 *СОВЕТ ДНЯ* (1-2 предложения)
-- Конкретное действие, которое принесёт удачу
+- Конкретное действие с учётом времени
 
-Дай краткий прогноз. 8-10 предложений. Не используй другие планеты — только Луну."""
+Дай краткий прогноз. 8-10 предложений. Указывай время. Не используй другие планеты."""
             max_tok = 500
+        
+        # ===== ПРОГНОЗ НА МЕСЯЦ =====
         elif d == 'f_month':
+            # Формируем аспекты
+            aspects_text = ""
+            if transit_aspects_data:
+                aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
+                for i, asp in enumerate(transit_aspects_data[:8]):
+                    house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
+                    aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
+            else:
+                aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
+            
             prompt = f"""Ты — астролог. Прогноз на МЕСЯЦ на основе точных аспектов.
 
 📅 {now.strftime('%d.%m.%Y')}
@@ -1034,7 +1103,20 @@ async def btn(update, ctx):
 
 Дай прогноз. ВАЖНО: завершай КАЖДОЕ предложение точкой. Не обрывай."""
             max_tok = 2500
+        
+        # ===== ПРОГНОЗ НА НЕДЕЛЮ =====
         else:
+            # Формируем аспекты
+            aspects_text = ""
+            if transit_aspects_data:
+                aspects_text = "\n*ТОЧНЫЕ ТРАНЗИТНЫЕ АСПЕКТЫ:*\n"
+                for i, asp in enumerate(transit_aspects_data[:8]):
+                    house_info = f" в {asp['transit_house']} доме" if asp['transit_house'] else ""
+                    aspects_text += f"{asp['symbol']} {asp['transit_planet']} ({asp['transit_sign']}) {asp['aspect']} с {asp['natal_planet']} натальным ({asp['natal_sign']}) — {asp['influence']}{house_info}\n"
+                    aspects_text += f"   Угол: {asp['angle']}° | {asp['direction']}\n"
+            else:
+                aspects_text = "\n*Точных транзитных аспектов сейчас нет.*\n"
+            
             prompt = f"""Ты — профессиональный астролог с 25-летним опытом. Сделай ПРЕДСКАЗАТЕЛЬНЫЙ прогноз на {period} на основе ТОЧНЫХ математических аспектов.
 
 📅 ДАТА ПРОГНОЗА: {now.strftime('%d.%m.%Y')}
