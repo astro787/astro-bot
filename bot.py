@@ -19,12 +19,9 @@ from astro_calc import *
 from data_storage import users, save_users, load_users
 from cities import CITIES, CITY_TIMEZONES
 from chart_drawer import draw_natal_chart_pro
-from support import support_start, forward_to_admin, reply_to_user
 from config import CAT_EMOJI, cat_emoji, ADMIN_ID
 
 load_dotenv()
-
-SUPPORT_TOKEN = os.getenv("SUPPORT_TOKEN")
 
 # ===== KEEP-ALIVE СЕРВЕР =====
 class PingHandler(BaseHTTPRequestHandler):
@@ -70,6 +67,43 @@ def overview_btn():
         [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
     ])
+
+# ===== ФУНКЦИИ ПОДДЕРЖКИ =====
+async def support_msg(update, ctx):
+    """Пользователь пишет в поддержку"""
+    user = update.effective_user
+    msg = update.message.text
+    
+    if msg.startswith('/support_msg'):
+        msg = msg.replace('/support_msg ', '', 1)
+        if msg == '/support_msg':
+            await update.message.reply_text("💬 *Поддержка*\n\nНапишите ваш вопрос командой:\n`/support_msg ваш вопрос`", parse_mode='Markdown')
+            return
+    
+    text = f"📩 *Сообщение от пользователя*\n👤 *{user.full_name}* (@{user.username or 'нет'})\n🆔 `{user.id}`\n💬 {msg}\n\n_Ответить:_ `/reply {user.id} текст`"
+    await ctx.bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode='Markdown')
+    await update.message.reply_text("✅ *Отправлено!* Астролог ответит вам лично в ближайшее время.", parse_mode='Markdown')
+
+async def reply_cmd(update, ctx):
+    """Админ отвечает пользователю"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+    
+    args = update.message.text.split(maxsplit=2)
+    if len(args) < 3:
+        await update.message.reply_text("❌ Формат: `/reply ID текст`")
+        return
+    
+    try:
+        user_id = int(args[1])
+        await ctx.bot.send_message(
+            chat_id=user_id,
+            text=f"💬 *Ответ от астролога:*\n\n{args[2]}\n\n─ @Astromasbot",
+            parse_mode='Markdown'
+        )
+        await update.message.reply_text(f"✅ Ответ отправлен пользователю {user_id}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Ошибка: {e}")
 
 # ===== ОСНОВНЫЕ ФУНКЦИИ БОТА =====
 async def start(update, ctx):
@@ -318,11 +352,14 @@ async def btn(update, ctx):
         await q.edit_message_text("💎 *Подписка*\n\nСкоро здесь будет информация о платных возможностях.\n\nА пока — все функции бота бесплатны!", reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'support':
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 Написать в поддержку", url="https://t.me/astro_chat_help_bot")],
-            [InlineKeyboardButton("🔙 Назад", callback_data="back")]
-        ])
-        await q.edit_message_text("💬 *Поддержка*\n\nЕсли у вас есть вопросы или предложения — нажмите кнопку ниже.\nМы ответим в ближайшее время!", reply_markup=kb, parse_mode='Markdown')
+        await q.edit_message_text(
+            "💬 *Поддержка*\n\n"
+            "Напишите ваш вопрос прямо здесь командой:\n"
+            "`/support_msg ваш вопрос`\n\n"
+            "Астролог ответит вам лично!",
+            reply_markup=overview_btn(),
+            parse_mode='Markdown'
+        )
     
     elif d == 'newdata': ctx.user_data['mode'] = 'newdata'; await q.edit_message_text("📝 *Введите данные:*\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'newdata_noon': ctx.user_data['mode'] = 'newdata_noon'; await q.edit_message_text("📝 *Введите дату и город:*\n`ДД.ММ.ГГГГ Город`", reply_markup=back_btn(), parse_mode='Markdown')
@@ -331,6 +368,12 @@ async def btn(update, ctx):
 
 async def msg(update, ctx):
     t = update.message.text.strip(); m = ctx.user_data.get('mode',''); uid = update.effective_user.id
+    
+    # Обработка команды поддержки
+    if t.startswith('/support_msg'):
+        await support_msg(update, ctx)
+        return
+    
     if m in ['newdata', 'newdata_noon']: ctx.user_data['mode'] = ''
     if m == 'compat':
         parts = t.title().split()
@@ -387,23 +430,11 @@ def main():
     app.add_handler(CommandHandler('start', start))
     app.add_handler(CommandHandler('help', help_command))
     app.add_handler(CommandHandler('logtest', logtest))
+    app.add_handler(CommandHandler('support_msg', support_msg))
+    app.add_handler(CommandHandler('reply', reply_cmd))
     app.add_handler(CallbackQueryHandler(btn))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     threading.Thread(target=run_keepalive, daemon=True).start()
-    
-    # Запускаем бота поддержки в том же event loop
-    async def post_init(app):
-        if SUPPORT_TOKEN:
-            support_app = Application.builder().token(SUPPORT_TOKEN).build()
-            support_app.add_handler(CommandHandler('start', support_start))
-            support_app.add_handler(CommandHandler('reply', reply_to_user))
-            support_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, forward_to_admin))
-            await support_app.initialize()
-            await support_app.start()
-            await support_app.updater.start_polling(drop_pending_updates=True)
-            print("🚀 Бот поддержки запущен!")
-    
-    app.post_init = post_init
     
     print("🚀 Бот запущен!")
     app.run_polling(drop_pending_updates=True)
