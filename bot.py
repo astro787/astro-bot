@@ -319,7 +319,7 @@ async def btn(update, ctx):
     
     elif d == 'support':
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 Написать в поддержку", url="https://t.me/astro_chat_helpbot")],
+            [InlineKeyboardButton("💬 Написать в поддержку", url="https://t.me/astro_chat_help_bot")],
             [InlineKeyboardButton("🔙 Назад", callback_data="back")]
         ])
         await q.edit_message_text("💬 *Поддержка*\n\nЕсли у вас есть вопросы или предложения — нажмите кнопку ниже.\nМы ответим в ближайшее время!", reply_markup=kb, parse_mode='Markdown')
