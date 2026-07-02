@@ -1285,8 +1285,6 @@ async def msg(update, ctx):
         await update.message.reply_text("❌ *Овен Телец*", reply_markup=back_btn(), parse_mode='Markdown')
         return
     try:
-        parts = t.split()
-    try:
     parts = t.split()
     
     # Определяем, сколько частей — дата (1 часть), время (2 части), город (остальное)
