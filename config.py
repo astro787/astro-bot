@@ -5,4 +5,4 @@ CAT_EMOJI = ['🐱', '😺', '😸', '😻', '😼', '😽', '🙀', '😿', '�
 def cat_emoji():
     return random.choice(CAT_EMOJI)
 
-ADMIN_ID = 123456789  # ЗАМЕНИ НА СВОЙ ID из @userinfobot
+ADMIN_ID = 870114986  # ЗАМЕНИ НА СВОЙ ID из @userinfobot
