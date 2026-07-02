@@ -585,7 +585,7 @@ def menu_btn():
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
         [InlineKeyboardButton("🗑 Удалить данные", callback_data="delete_confirm")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
-        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/@astro_chat_help")],
+        [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
     ])
 
 def overview_btn():
@@ -593,7 +593,7 @@ def overview_btn():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🏠 В начало", callback_data="back")],
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
-        [InlineKeyboardButton("💬 Поддержка", url="https://t.me/@astro_chat_help")],
+        [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
     ])
 
@@ -1398,6 +1398,15 @@ ASC в {asc_sign} {asc_deg}° (1 дом)
             "💎 *Подписка*\n\n"
             "Скоро здесь будет информация о платных возможностях.\n\n"
             "А пока — все функции бота бесплатны!",
+            reply_markup=overview_btn(),
+            parse_mode='Markdown'
+        )
+    elif d == 'support':
+        await q.edit_message_text(
+            "💬 *Поддержка*\n\n"
+            "Если у вас есть вопросы, предложения или нужна помощь — напишите нам:\n\n"
+            "👉 @astro_chat_help\n\n"
+            "Мы ответим в ближайшее время!",
             reply_markup=overview_btn(),
             parse_mode='Markdown'
         )
