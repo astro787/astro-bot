@@ -49,7 +49,7 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT = "Ты — астролог с 20 летним стажем. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
+SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
 
 def validate_date(day, month, year):
     if year < 1900 or year > datetime.now().year: raise ValueError(f"Год: 1900-{datetime.now().year}")
@@ -334,25 +334,8 @@ def get_current_time():
 def calc_transits():
     now = get_current_time()
     jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute/60.0)
-    
-    # Прямой расчёт Луны
-    try:
-        moon_result = swe.calc_ut(jd, swe.MOON)
-        moon_lon = moon_result[0] if isinstance(moon_result, tuple) else moon_result[0]
-        moon_speed = moon_result[3] if len(moon_result) > 3 else 0
-    except:
-        moon_lon = 0
-        moon_speed = 0
-    
     transits = {}
-    transits['Луна'] = {
-        'sign': sign_from_lon(moon_lon),
-        'degree': degree_in_sign(moon_lon),
-        'lon': moon_lon,
-        'retro': moon_speed < 0
-    }
     
-    # Остальные планеты
     for name, pid in PLANETS.items():
         try:
             result = swe.calc_ut(jd, pid)
@@ -367,7 +350,6 @@ def calc_transits():
         except:
             continue
     
-    # Узлы
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
         transits['Раху'] = {'sign': sign_from_lon(rahu_lon), 'degree': degree_in_sign(rahu_lon), 'lon': rahu_lon}
@@ -670,7 +652,7 @@ async def btn(update, ctx):
         users[uid]['consent_date'] = datetime.now().strftime('%d.%m.%Y %H:%M')
         save_users()
         await q.message.delete()
-        await q.message.reply_text(f"{cat_emoji()} *Добро пожаловать!*                    Ответы уже ждут Вас. Выберите нужный раздел в меню ниже.", reply_markup=menu_btn(), parse_mode='Markdown')
+        await q.message.reply_text(f"{cat_emoji()} *Согласие принято!*\nВведите данные рождения:\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`\nИли используйте кнопку Меню слева.", reply_markup=menu_btn(), parse_mode='Markdown')
         return
     
     if d == 'start_decline':
