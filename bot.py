@@ -594,6 +594,8 @@ def parse_city(city_str):
 def back_btn():
     return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]])
 
+PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
+
 def menu_btn():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal"),
@@ -607,6 +609,7 @@ def menu_btn():
         [InlineKeyboardButton("🗑 Удалить данные", callback_data="delete_confirm")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
         [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
+        [InlineKeyboardButton("📄 Политика конфиденциальности", url=PRIVACY_URL)],
     ])
 
 def overview_btn():
@@ -616,6 +619,7 @@ def overview_btn():
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
         [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
+        [InlineKeyboardButton("📄 Политика конфиденциальности", url=PRIVACY_URL)],
     ])
 
 # ===== ГРАФИЧЕСКАЯ КАРТА =====
@@ -806,7 +810,7 @@ async def start(update, ctx):
 
 ─────────────────────
 📄 *Перед использованием бота ознакомьтесь:*
-• Политика конфиденциальности
+• [Политика конфиденциальности]({PRIVACY_URL})
 • Договор-оферта
 • Согласие на обработку данных
 
