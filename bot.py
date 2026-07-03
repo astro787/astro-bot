@@ -440,7 +440,6 @@ def overview_btn():
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
     ])
 
-# ===== ОЖИДАНИЕ (кот с часами) =====
 WAITING_EMOJI = ['🐱⏳', '😺⏳', '😸⏳', '😻⏳', '🐱⌛', '😺⌛', '🔮🐱⏳', '🌟🐱⌛']
 
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
@@ -564,9 +563,19 @@ async def compat_cmd(update, ctx):
     await update.message.reply_text("💑 *Совместимость*\nВведите: *Овен Телец*", parse_mode='Markdown')
 
 async def moon_cmd(update, ctx):
-    t = calc_transits(); now = get_current_time()
-    phase = {0:"🌑 Новолуние",1:"🌒 Молодая",2:"🌓 Первая четверть",3:"🌔 Прибывающая",4:"🌕 Полнолуние",5:"🌖 Убывающая",6:"🌗 Последняя четверть",7:"🌘 Старая"}.get(now.day % 8, "🌑")
-    await update.message.reply_text(f"🌙 *Луна* {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{t['Луна']['sign']}* {t['Луна']['degree']}°", parse_mode='Markdown')
+    t = calc_transits()
+    now = get_current_time()
+    phase_num = now.day % 8
+    phases = {0: "🌑 Новолуние", 1: "🌒 Молодая", 2: "🌓 Первая четверть", 3: "🌔 Прибывающая", 4: "🌕 Полнолуние", 5: "🌖 Убывающая", 6: "🌗 Последняя четверть", 7: "🌘 Старая"}
+    phase = phases.get(phase_num, "🌑")
+    moon = t.get('Луна', {})
+    if moon:
+        await update.message.reply_text(
+            f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon['sign']}* {moon['degree']}°",
+            parse_mode='Markdown'
+        )
+    else:
+        await update.message.reply_text("🌙 *Луна*\nДанные временно недоступны.", parse_mode='Markdown')
 
 async def daily_cmd(update, ctx):
     now = get_current_time(); t = calc_transits()
@@ -662,7 +671,6 @@ async def btn(update, ctx):
         now = get_current_time()
         ptitle = {'f_day':'сегодня','f_week':'неделю','f_month':'месяц'}.get(d, '')
         
-        # Показываем ожидание
         wait_msg = await q.message.reply_text(f"{random.choice(WAITING_EMOJI)} Рассчитываю прогноз на {ptitle}...")
         
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
@@ -725,7 +733,6 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
         
         forecast = ai_client.ask(prompt, max_tokens=max_tok)
         
-        # Удаляем сообщение ожидания
         try: await wait_msg.delete()
         except: pass
         
@@ -813,9 +820,20 @@ ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
         await q.edit_message_text("💑 Два знака: *Овен Телец*", reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'moon':
-        t = calc_transits(); now = get_current_time()
-        phase = {0:"🌑 Новолуние",1:"🌒 Молодая",2:"🌓 Первая четверть",3:"🌔 Прибывающая",4:"🌕 Полнолуние",5:"🌖 Убывающая",6:"🌗 Последняя четверть",7:"🌘 Старая"}.get(now.day % 8, "🌑")
-        await q.edit_message_text(f"🌙 *Луна* {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{t['Луна']['sign']}* {t['Луна']['degree']}°", reply_markup=overview_btn(), parse_mode='Markdown')
+        t = calc_transits()
+        now = get_current_time()
+        phase_num = now.day % 8
+        phases = {0: "🌑 Новолуние", 1: "🌒 Молодая", 2: "🌓 Первая четверть", 3: "🌔 Прибывающая", 4: "🌕 Полнолуние", 5: "🌖 Убывающая", 6: "🌗 Последняя четверть", 7: "🌘 Старая"}
+        phase = phases.get(phase_num, "🌑")
+        moon = t.get('Луна', {})
+        if moon:
+            await q.edit_message_text(
+                f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon['sign']}* {moon['degree']}°",
+                reply_markup=overview_btn(),
+                parse_mode='Markdown'
+            )
+        else:
+            await q.edit_message_text("🌙 *Луна*\nДанные временно недоступны.", reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'daily':
         now = get_current_time(); t = calc_transits()
