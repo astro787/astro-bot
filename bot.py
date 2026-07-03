@@ -49,7 +49,7 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
+SYSTEM_PROMPT = "Ты — астролог с 20-летним опытом. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
 
 def validate_date(day, month, year):
     if year < 1900 or year > datetime.now().year: raise ValueError(f"Год: 1900-{datetime.now().year}")
@@ -400,9 +400,7 @@ def get_aspects_with_angles(natal):
             elif abs(diff-180) <= 6: asp = 'оппозиция'
             else: continue
             aspects.append((names[i], names[j], asp, round(diff, 1)))
-    return aspects
-
-def calc_transit_aspects(natal, transits):
+    return aspectsdef calc_transit_aspects(natal, transits):
     aspects = []
     for t_name, t_data in transits.items():
         if t_name in ['Раху', 'Кету']: continue
@@ -782,32 +780,71 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         aspects = get_aspects_with_angles(natal)
         
+        # Расширенные данные для подробного разбора
         planet_info = []
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн']:
             if p in natal:
                 h = get_house(natal[p]['lon'], natal['houses'])
                 retro = '℞' if natal[p].get('retro') else ''
-                planet_info.append(f"{p}:{natal[p]['sign']}{natal[p]['degree']}°({h}д){retro}")
+                planet_info.append(f"{p}: {natal[p]['sign']} {natal[p]['degree']}° в {h} доме{retro}")
         
         asc_sign = natal['Асцендент']['sign']
         asc_ruler = SIGN_RULERS.get(asc_sign, '')
         asc_ruler_house = get_house(natal[asc_ruler]['lon'], natal['houses']) if asc_ruler in natal else '?'
         
-        aspect_strs = [f"{a[0]} {a[2]} {a[1]}" for a in aspects[:8]]
+        # Аспекты по планетам
+        sun_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Солнце' in (a[0], a[1])]
+        moon_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Луна' in (a[0], a[1])]
+        mer_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Меркурий' in (a[0], a[1])]
+        ven_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Венера' in (a[0], a[1])]
+        mar_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Марс' in (a[0], a[1])]
         
         astro_data = f"""
-📍 {u['city'].title()} | {u['hour']:02d}:{u['minute']:02d}
-ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
-{' | '.join(planet_info)}
-☊:{natal['Раху']['sign']} | ☋:{natal['Кету']['sign']}
-Аспекты: {', '.join(aspect_strs) if aspect_strs else 'нет'}
+📍 {u['city'].title()} | 🕐 {u['hour']:02d}:{u['minute']:02d}
+
+🌟 АСЦЕНДЕНТ: {asc_sign} | Управитель: {asc_ruler} в {asc_ruler_house} доме
+
+☀ СОЛНЦЕ: {natal['Солнце']['sign']} {natal['Солнце']['degree']}° в {get_house(natal['Солнце']['lon'], natal['houses'])} доме
+Аспекты Солнца: {', '.join(sun_aspects) if sun_aspects else 'нет'}
+
+🌙 ЛУНА: {natal['Луна']['sign']} {natal['Луна']['degree']}° в {get_house(natal['Луна']['lon'], natal['houses'])} доме
+Аспекты Луны: {', '.join(moon_aspects) if moon_aspects else 'нет'}
+
+☿ МЕРКУРИЙ: {natal['Меркурий']['sign']} {natal['Меркурий']['degree']}° в {get_house(natal['Меркурий']['lon'], natal['houses'])} доме
+Аспекты Меркурия: {', '.join(mer_aspects) if mer_aspects else 'нет'}
+
+♀ ВЕНЕРА: {natal['Венера']['sign']} {natal['Венера']['degree']}° в {get_house(natal['Венера']['lon'], natal['houses'])} доме
+Аспекты Венеры: {', '.join(ven_aspects) if ven_aspects else 'нет'}
+
+♂ МАРС: {natal['Марс']['sign']} {natal['Марс']['degree']}° в {get_house(natal['Марс']['lon'], natal['houses'])} доме
+Аспекты Марса: {', '.join(mar_aspects) if mar_aspects else 'нет'}
+
+☊ РАХУ: {natal['Раху']['sign']} {natal['Раху']['degree']}° в {get_house(natal['Раху']['lon'], natal['houses'])} доме
+☋ КЕТУ: {natal['Кету']['sign']} {natal['Кету']['degree']}° в {get_house(natal['Кету']['lon'], natal['houses'])} доме
 """
+        
         prompt = f"""Разбор натальной карты. Начинай сразу с разбора.
 {astro_data}
 
-Структура: ASC, Луна, Солнце, Меркурий, Венера, Марс, Узлы. 20-25 предл. Упоминай аспекты."""
+Структура (каждый раздел 5-8 предложений):
+
+🌟 АСЦЕНДЕНТ: Знак асцендента показывает как человека воспринимают при первой встрече, какие качества нужно проявлять для успеха. Опиши формулу успеха через управителя асцендента в доме.
+
+🌙 ЛУНА: Положение в знаке и доме, аспекты. Опиши базовые эмоции и потребности, как человек чувствует комфорт и безопасность. Негативные аспекты — напряжение и проблемы. Положительные — возможности.
+
+☀ СОЛНЦЕ: Положение в знаке и доме, аспекты. Опиши самооценку, в чём изюминка и таланты. Как реализовать потенциал. Возможные сложности через негативные аспекты.
+
+☿ МЕРКУРИЙ: Положение в знаке и доме, аспекты. Стиль общения, навыки коммуникации, восприятие информации. О чём интересно говорить, область интересов.
+
+♀ ВЕНЕРА: Положение в знаке и доме, аспекты. Способ выражения чувств, язык любви. Что нравится, как раскрыть женственность.
+
+♂ МАРС: Положение в знаке и доме, аспекты. Что мотивирует, поведение в кризисе и стрессе. Как начать действовать, поведение в конкуренции.
+
+☊ КАРМИЧЕСКИЕ УЗЛЫ: Положение в знаке и доме. Предназначение, в какую сторону двигаться. Какие качества наработать по северному узлу.
+
+Ищи информацию по западной астрологии, синтезируй и выдай структурно. 40-60 предложений."""
         
-        forecast = ai_client.ask(prompt, max_tokens=900)
+        forecast = ai_client.ask(prompt, max_tokens=2500)
         img = draw_natal_chart_pro(natal, u['city'], f"{u['hour']:02d}:{u['minute']:02d}")
         
         try: await wait_msg.delete()
