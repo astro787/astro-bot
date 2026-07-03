@@ -50,10 +50,12 @@ def cat_emoji():
     return random.choice(CAT_EMOJI)
 
 # ========== ID АДМИНА ДЛЯ ПОДДЕРЖКИ ==========
-ADMIN_ID = 870114986  # Твой ID из @userinfobot
+ADMIN_ID = 870114986
 
-# ========== URL ПОЛИТИКИ КОНФИДЕНЦИАЛЬНОСТИ ==========
+# ========== URL ДОКУМЕНТОВ ==========
 PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
+OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
+CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
@@ -611,6 +613,8 @@ def menu_btn():
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
         [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
         [InlineKeyboardButton("📄 Политика конфиденциальности", url=PRIVACY_URL)],
+        [InlineKeyboardButton("📋 Договор-оферта", url=OFERTA_URL)],
+        [InlineKeyboardButton("✅ Согласие на обработку данных", url=CONSENT_URL)],
     ])
 
 def overview_btn():
@@ -621,6 +625,8 @@ def overview_btn():
         [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
         [InlineKeyboardButton("📄 Политика конфиденциальности", url=PRIVACY_URL)],
+        [InlineKeyboardButton("📋 Договор-оферта", url=OFERTA_URL)],
+        [InlineKeyboardButton("✅ Согласие на обработку данных", url=CONSENT_URL)],
     ])
 
 # ===== ГРАФИЧЕСКАЯ КАРТА =====
@@ -812,8 +818,8 @@ async def start(update, ctx):
 ─────────────────────
 📄 *Перед использованием бота ознакомьтесь:*
 • [Политика конфиденциальности]({PRIVACY_URL})
-• Договор-оферта
-• Согласие на обработку данных
+• [Договор-оферта]({OFERTA_URL})
+• [Согласие на обработку данных]({CONSENT_URL})
 
 Нажимая кнопку «Принимаю», вы подтверждаете согласие.
 Если вы не согласны — просто покиньте бота.
