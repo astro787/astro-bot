@@ -49,7 +49,7 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Упоминай планеты и аспекты."
+SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
 
 def validate_date(day, month, year):
     if year < 1900 or year > datetime.now().year: raise ValueError(f"Год: 1900-{datetime.now().year}")
@@ -68,7 +68,7 @@ class AIClient:
         self.deepseek_token = deepseek_token; self.hf_token = hf_token
         self.deepseek_url = "https://api.deepseek.com/v1/chat/completions"
         self.hf_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
-        self.max_retries = 2; self.timeout = 30
+        self.max_retries = 2; self.timeout = 40
 
     def ask(self, prompt, max_tokens=300):
         if self.deepseek_token:
@@ -440,6 +440,9 @@ def overview_btn():
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
     ])
 
+# ===== ОЖИДАНИЕ (кот с часами) =====
+WAITING_EMOJI = ['🐱⏳', '😺⏳', '😸⏳', '😻⏳', '🐱⌛', '😺⌛', '🔮🐱⏳', '🌟🐱⌛']
+
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
     ax.set_theta_zero_location('N'); ax.set_theta_direction(1); ax.set_ylim(0, 1.5)
@@ -529,7 +532,6 @@ async def reply_cmd(update, ctx):
         await update.message.reply_text("✅ Отправлено")
     except: await update.message.reply_text("❌ Ошибка")
 
-# ===== КОМАНДЫ МЕНЮ (дублируют основной функционал) =====
 async def natal_cmd(update, ctx):
     uid = update.effective_user.id
     if uid in users and 'sign' in users[uid]:
@@ -563,8 +565,8 @@ async def compat_cmd(update, ctx):
 
 async def moon_cmd(update, ctx):
     t = calc_transits(); now = get_current_time()
-    phase = {0:"🌑",1:"🌒",2:"🌓",3:"🌔",4:"🌕",5:"🌖",6:"🌗",7:"🌘"}.get(now.day % 8, "🌑")
-    await update.message.reply_text(f"🌙 *Луна* {now.strftime('%d.%m.%Y')}\n{phase} *{t['Луна']['sign']}* {t['Луна']['degree']}°", parse_mode='Markdown')
+    phase = {0:"🌑 Новолуние",1:"🌒 Молодая",2:"🌓 Первая четверть",3:"🌔 Прибывающая",4:"🌕 Полнолуние",5:"🌖 Убывающая",6:"🌗 Последняя четверть",7:"🌘 Старая"}.get(now.day % 8, "🌑")
+    await update.message.reply_text(f"🌙 *Луна* {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{t['Луна']['sign']}* {t['Луна']['degree']}°", parse_mode='Markdown')
 
 async def daily_cmd(update, ctx):
     now = get_current_time(); t = calc_transits()
@@ -660,7 +662,8 @@ async def btn(update, ctx):
         now = get_current_time()
         ptitle = {'f_day':'сегодня','f_week':'неделю','f_month':'месяц'}.get(d, '')
         
-        await q.message.reply_text(f"{cat_emoji()} Рассчитываю...")
+        # Показываем ожидание
+        wait_msg = await q.message.reply_text(f"{random.choice(WAITING_EMOJI)} Рассчитываю прогноз на {ptitle}...")
         
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         transits = calc_transits()
@@ -700,7 +703,7 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
                 m_house = get_house(m_lon, natal['houses'])
                 moon_data.append(f"{h:02d}:{m_sign}({m_house}д)")
             
-            prompt = f"""Прогноз на день. Начинай сразу с прогноза, без даты и приветствий.
+            prompt = f"""Прогноз на день. Начинай сразу с прогноза.
 {astro}
 Луна: {' → '.join(moon_data)}
 
@@ -708,19 +711,24 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
             max_tok = 350
         
         elif d == 'f_month':
-            prompt = f"""Прогноз на месяц. Начинай сразу с прогноза, без даты и приветствий.
+            prompt = f"""Прогноз на месяц. Начинай сразу с прогноза.
 {astro}
 
 Дай 10-12 предл.: любовь, карьера, энергия, совет. Упоминай транзитные аспекты."""
             max_tok = 1200
         else:
-            prompt = f"""Прогноз на {period}. Начинай сразу с прогноза, без даты и приветствий.
+            prompt = f"""Прогноз на {period}. Начинай сразу с прогноза.
 {astro}
 
 Дай 6-8 предл.: любовь, карьера, энергия, совет. Упоминай аспекты."""
             max_tok = 500 if d == 'f_week' else 400
         
         forecast = ai_client.ask(prompt, max_tokens=max_tok)
+        
+        # Удаляем сообщение ожидания
+        try: await wait_msg.delete()
+        except: pass
+        
         if forecast:
             parts = ai_client.split_message(forecast)
             for i, part in enumerate(parts):
@@ -738,6 +746,8 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
             ]), parse_mode='Markdown'); return
         
         u = users[uid]
+        wait_msg = await q.message.reply_text(f"{random.choice(WAITING_EMOJI)} Рассчитываю натальную карту...")
+        
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         aspects = get_aspects_with_angles(natal)
         
@@ -761,13 +771,17 @@ ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
 ☊:{natal['Раху']['sign']} | ☋:{natal['Кету']['sign']}
 Аспекты: {', '.join(aspect_strs) if aspect_strs else 'нет'}
 """
-        prompt = f"""Разбор натальной карты. Начинай сразу с разбора, без даты и приветствий.
+        prompt = f"""Разбор натальной карты. Начинай сразу с разбора.
 {astro_data}
 
 Структура: ASC, Луна, Солнце, Меркурий, Венера, Марс, Узлы. 20-25 предл. Упоминай аспекты."""
         
         forecast = ai_client.ask(prompt, max_tokens=900)
         img = draw_natal_chart_pro(natal, u['city'], f"{u['hour']:02d}:{u['minute']:02d}")
+        
+        try: await wait_msg.delete()
+        except: pass
+        
         await update.effective_message.reply_photo(photo=img)
         
         if forecast:
@@ -800,8 +814,8 @@ ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
     
     elif d == 'moon':
         t = calc_transits(); now = get_current_time()
-        phase = {0:"🌑",1:"🌒",2:"🌓",3:"🌔",4:"🌕",5:"🌖",6:"🌗",7:"🌘"}.get(now.day % 8, "🌑")
-        await q.edit_message_text(f"🌙 *Луна* {now.strftime('%d.%m.%Y')}\n{phase} *{t['Луна']['sign']}* {t['Луна']['degree']}°", reply_markup=overview_btn(), parse_mode='Markdown')
+        phase = {0:"🌑 Новолуние",1:"🌒 Молодая",2:"🌓 Первая четверть",3:"🌔 Прибывающая",4:"🌕 Полнолуние",5:"🌖 Убывающая",6:"🌗 Последняя четверть",7:"🌘 Старая"}.get(now.day % 8, "🌑")
+        await q.edit_message_text(f"🌙 *Луна* {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{t['Луна']['sign']}* {t['Луна']['degree']}°", reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'daily':
         now = get_current_time(); t = calc_transits()
@@ -851,9 +865,12 @@ async def msg(update, ctx):
     if m == 'compat':
         parts = t.title().split()
         if len(parts)==2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
-            fc = ai_client.ask(f"Совместимость {parts[0]} {parts[1]}. Процент и 2-3 предл.", 100) or "70% — Хорошая совместимость"
+            wait_msg = await update.message.reply_text(f"{random.choice(WAITING_EMOJI)} Рассчитываю совместимость...")
+            fc = ai_client.ask(f"Совместимость {parts[0]} {parts[1]}. Процент и 3-4 предложения с рекомендациями.", 200)
+            try: await wait_msg.delete()
+            except: pass
             ctx.user_data['mode'] = ''
-            await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n{fc}", reply_markup=overview_btn(), parse_mode='Markdown')
+            await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc or '70% — Хорошая совместимость'}", reply_markup=overview_btn(), parse_mode='Markdown')
             return
         await update.message.reply_text("❌ *Овен Телец*", reply_markup=back_btn(), parse_mode='Markdown'); return
     
