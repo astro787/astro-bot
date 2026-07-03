@@ -52,6 +52,9 @@ def cat_emoji():
 # ========== ID АДМИНА ДЛЯ ПОДДЕРЖКИ ==========
 ADMIN_ID = 870114986  # Твой ID из @userinfobot
 
+# ========== URL ПОЛИТИКИ КОНФИДЕНЦИАЛЬНОСТИ ==========
+PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
+
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
     current_year = datetime.now().year
@@ -593,8 +596,6 @@ def parse_city(city_str):
 
 def back_btn():
     return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]])
-
-PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 
 def menu_btn():
     return InlineKeyboardMarkup([
