@@ -334,27 +334,46 @@ def get_current_time():
 def calc_transits():
     now = get_current_time()
     jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute/60.0)
+    
+    # Прямой расчёт Луны
+    try:
+        moon_result = swe.calc_ut(jd, swe.MOON)
+        moon_lon = moon_result[0] if isinstance(moon_result, tuple) else moon_result[0]
+        moon_speed = moon_result[3] if len(moon_result) > 3 else 0
+    except:
+        moon_lon = 0
+        moon_speed = 0
+    
     transits = {}
+    transits['Луна'] = {
+        'sign': sign_from_lon(moon_lon),
+        'degree': degree_in_sign(moon_lon),
+        'lon': moon_lon,
+        'retro': moon_speed < 0
+    }
+    
+    # Остальные планеты
     for name, pid in PLANETS.items():
         try:
             result = swe.calc_ut(jd, pid)
             lon_deg = result[0] if isinstance(result, tuple) else result[0]
             speed = result[3] if len(result) > 3 else 0
-            transits[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg, 'retro': speed < 0}
-        except Exception as e:
-            print(f"Ошибка транзита {name}: {e}")
+            transits[name] = {
+                'sign': sign_from_lon(lon_deg),
+                'degree': degree_in_sign(lon_deg),
+                'lon': lon_deg,
+                'retro': speed < 0
+            }
+        except:
             continue
     
+    # Узлы
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
         transits['Раху'] = {'sign': sign_from_lon(rahu_lon), 'degree': degree_in_sign(rahu_lon), 'lon': rahu_lon}
         transits['Кету'] = {'sign': sign_from_lon((rahu_lon + 180) % 360), 'degree': degree_in_sign((rahu_lon + 180) % 360), 'lon': (rahu_lon + 180) % 360}
-    except Exception as e:
-        print(f"Ошибка узлов: {e}")
-    
-    # ГАРАНТИЯ: Луна всегда есть
-    if 'Луна' not in transits:
-        transits['Луна'] = {'sign': 'Овен', 'degree': 0, 'lon': 0, 'retro': False}
+    except:
+        pass
     
     return transits
 
