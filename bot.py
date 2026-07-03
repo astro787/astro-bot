@@ -347,8 +347,19 @@ def calc_transits():
                 'lon': lon_deg,
                 'retro': speed < 0
             }
-        except:
+        except Exception as e:
+            print(f"Ошибка транзита {name}: {e}")
             continue
+    
+    # ГАРАНТИЯ: Луна всегда есть
+    if 'Луна' not in transits:
+        moon_lon = swe.calc_ut(jd, swe.MOON)[0][0]
+        transits['Луна'] = {
+            'sign': sign_from_lon(moon_lon),
+            'degree': degree_in_sign(moon_lon),
+            'lon': moon_lon,
+            'retro': False
+        }
     
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
@@ -578,8 +589,9 @@ async def moon_cmd(update, ctx):
     phase_num = now.day % 8
     phases = {0: "🌑 Новолуние", 1: "🌒 Молодая", 2: "🌓 Первая четверть", 3: "🌔 Прибывающая", 4: "🌕 Полнолуние", 5: "🌖 Убывающая", 6: "🌗 Последняя четверть", 7: "🌘 Старая"}
     phase = phases.get(phase_num, "🌑")
-    moon_sign = t['Луна']['sign']
-    moon_deg = t['Луна']['degree']
+    moon = t.get('Луна', {})
+    moon_sign = moon.get('sign', '?')
+    moon_deg = moon.get('degree', 0)
     await update.message.reply_text(
         f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon_sign}* {moon_deg}°",
         parse_mode='Markdown'
@@ -837,8 +849,9 @@ ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
         phase_num = now.day % 8
         phases = {0: "🌑 Новолуние", 1: "🌒 Молодая", 2: "🌓 Первая четверть", 3: "🌔 Прибывающая", 4: "🌕 Полнолуние", 5: "🌖 Убывающая", 6: "🌗 Последняя четверть", 7: "🌘 Старая"}
         phase = phases.get(phase_num, "🌑")
-        moon_sign = t['Луна']['sign']
-        moon_deg = t['Луна']['degree']
+        moon = t.get('Луна', {})
+        moon_sign = moon.get('sign', '?')
+        moon_deg = moon.get('degree', 0)
         await q.edit_message_text(
             f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon_sign}* {moon_deg}°",
             reply_markup=overview_btn(),
