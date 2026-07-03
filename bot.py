@@ -49,7 +49,7 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT = "Ты — астролог с 20-летним опытом. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
+SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
 
 def validate_date(day, month, year):
     if year < 1900 or year > datetime.now().year: raise ValueError(f"Год: 1900-{datetime.now().year}")
@@ -335,39 +335,21 @@ def calc_transits():
     now = get_current_time()
     jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute/60.0)
     transits = {}
-    
     for name, pid in PLANETS.items():
         try:
             result = swe.calc_ut(jd, pid)
             lon_deg = result[0] if isinstance(result, tuple) else result[0]
             speed = result[3] if len(result) > 3 else 0
-            transits[name] = {
-                'sign': sign_from_lon(lon_deg),
-                'degree': degree_in_sign(lon_deg),
-                'lon': lon_deg,
-                'retro': speed < 0
-            }
-        except Exception as e:
-            print(f"Ошибка транзита {name}: {e}")
-            continue
-    
-    # ГАРАНТИЯ: Луна всегда есть
+            transits[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg, 'retro': speed < 0}
+        except: continue
     if 'Луна' not in transits:
         moon_lon = swe.calc_ut(jd, swe.MOON)[0][0]
-        transits['Луна'] = {
-            'sign': sign_from_lon(moon_lon),
-            'degree': degree_in_sign(moon_lon),
-            'lon': moon_lon,
-            'retro': False
-        }
-    
+        transits['Луна'] = {'sign': sign_from_lon(moon_lon), 'degree': degree_in_sign(moon_lon), 'lon': moon_lon, 'retro': False}
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
         transits['Раху'] = {'sign': sign_from_lon(rahu_lon), 'degree': degree_in_sign(rahu_lon), 'lon': rahu_lon}
         transits['Кету'] = {'sign': sign_from_lon((rahu_lon + 180) % 360), 'degree': degree_in_sign((rahu_lon + 180) % 360), 'lon': (rahu_lon + 180) % 360}
-    except:
-        pass
-    
+    except: pass
     return transits
 
 def get_aspects(planets):
@@ -401,7 +383,8 @@ def get_aspects_with_angles(natal):
             else: continue
             aspects.append((names[i], names[j], asp, round(diff, 1)))
     return aspects
-    def calc_transit_aspects(natal, transits):
+
+def calc_transit_aspects(natal, transits):
     aspects = []
     for t_name, t_data in transits.items():
         if t_name in ['Раху', 'Кету']: continue
@@ -663,7 +646,7 @@ async def btn(update, ctx):
         users[uid]['consent_date'] = datetime.now().strftime('%d.%m.%Y %H:%M')
         save_users()
         await q.message.delete()
-        await q.message.reply_text(f"{cat_emoji()} *Согласие принято!*\nВведите данные рождения:\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`\nИли используйте кнопку Меню слева.", reply_markup=menu_btn(), parse_mode='Markdown')
+        await q.message.reply_text(f"{cat_emoji()} *Добро пожаловать!*            Ответы уже ждут Вас.    Выберите нужный раздел ниже.", reply_markup=menu_btn(), parse_mode='Markdown')
         return
     
     if d == 'start_decline':
@@ -781,7 +764,6 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         aspects = get_aspects_with_angles(natal)
         
-        # Расширенные данные для подробного разбора
         planet_info = []
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн']:
             if p in natal:
@@ -793,7 +775,6 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
         asc_ruler = SIGN_RULERS.get(asc_sign, '')
         asc_ruler_house = get_house(natal[asc_ruler]['lon'], natal['houses']) if asc_ruler in natal else '?'
         
-        # Аспекты по планетам
         sun_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Солнце' in (a[0], a[1])]
         moon_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Луна' in (a[0], a[1])]
         mer_aspects = [f"{a[0]} {a[2]} {a[1]}" for a in aspects if 'Меркурий' in (a[0], a[1])]
@@ -827,7 +808,7 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
         prompt = f"""Разбор натальной карты. Начинай сразу с разбора.
 {astro_data}
 
-Структура (каждый раздел 5-8 предложений):
+Структура (каждый раздел 4-6 предложений):
 
 🌟 АСЦЕНДЕНТ: Знак асцендента показывает как человека воспринимают при первой встрече, какие качества нужно проявлять для успеха. Опиши формулу успеха через управителя асцендента в доме.
 
@@ -843,7 +824,7 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
 
 ☊ КАРМИЧЕСКИЕ УЗЛЫ: Положение в знаке и доме. Предназначение, в какую сторону двигаться. Какие качества наработать по северному узлу.
 
-Ищи информацию по западной астрологии, синтезируй и выдай структурно. 40-60 предложений."""
+Ищи информацию по западной астрологии, синтезируй и выдай структурно. 20-40 предложений."""
         
         forecast = ai_client.ask(prompt, max_tokens=2500)
         img = draw_natal_chart_pro(natal, u['city'], f"{u['hour']:02d}:{u['minute']:02d}")
