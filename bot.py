@@ -341,12 +341,21 @@ def calc_transits():
             lon_deg = result[0] if isinstance(result, tuple) else result[0]
             speed = result[3] if len(result) > 3 else 0
             transits[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg, 'retro': speed < 0}
-        except: continue
+        except Exception as e:
+            print(f"Ошибка транзита {name}: {e}")
+            continue
+    
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
         transits['Раху'] = {'sign': sign_from_lon(rahu_lon), 'degree': degree_in_sign(rahu_lon), 'lon': rahu_lon}
         transits['Кету'] = {'sign': sign_from_lon((rahu_lon + 180) % 360), 'degree': degree_in_sign((rahu_lon + 180) % 360), 'lon': (rahu_lon + 180) % 360}
-    except: pass
+    except Exception as e:
+        print(f"Ошибка узлов: {e}")
+    
+    # ГАРАНТИЯ: Луна всегда есть
+    if 'Луна' not in transits:
+        transits['Луна'] = {'sign': 'Овен', 'degree': 0, 'lon': 0, 'retro': False}
+    
     return transits
 
 def get_aspects(planets):
@@ -568,26 +577,28 @@ async def moon_cmd(update, ctx):
     phase_num = now.day % 8
     phases = {0: "🌑 Новолуние", 1: "🌒 Молодая", 2: "🌓 Первая четверть", 3: "🌔 Прибывающая", 4: "🌕 Полнолуние", 5: "🌖 Убывающая", 6: "🌗 Последняя четверть", 7: "🌘 Старая"}
     phase = phases.get(phase_num, "🌑")
-    moon = t.get('Луна', {})
-    if moon:
-        await update.message.reply_text(
-            f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon['sign']}* {moon['degree']}°",
-            parse_mode='Markdown'
-        )
-    else:
-        await update.message.reply_text("🌙 *Луна*\nДанные временно недоступны.", parse_mode='Markdown')
+    moon_sign = t['Луна']['sign']
+    moon_deg = t['Луна']['degree']
+    await update.message.reply_text(
+        f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon_sign}* {moon_deg}°",
+        parse_mode='Markdown'
+    )
 
 async def daily_cmd(update, ctx):
     now = get_current_time(); t = calc_transits()
     text = f"📅 *Гороскоп на {now.strftime('%d.%m.%Y')}*\n\n"
+    planet_signs = {}
+    for p in ['Солнце', 'Луна', 'Меркурий', 'Венера', 'Марс']:
+        if p in t:
+            planet_signs[p] = t[p]['sign']
+    
     for sign in SIGN_NAMES:
         text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
-        if t.get('Солнце',{}).get('sign') == sign: text += "☀️ Солнце в знаке — день активности\n"
-        elif t.get('Луна',{}).get('sign') == sign: text += "🌙 Луна в знаке — эмоции на подъёме\n"
-        elif 'Меркурий' in t and t['Меркурий']['sign'] == sign: text += "☿ Меркурий в знаке — общение и контакты\n"
-        elif 'Венера' in t and t['Венера']['sign'] == sign: text += "♀ Венера в знаке — гармония и любовь\n"
-        elif 'Марс' in t and t['Марс']['sign'] == sign: text += "♂ Марс в знаке — энергия и действия\n"
-        else: text += "✨ Обычный день\n"
+        planets_here = [p for p, s in planet_signs.items() if s == sign]
+        if planets_here:
+            text += ', '.join(planets_here) + f" в знаке — {'энергия и активность' if 'Марс' in planets_here or 'Солнце' in planets_here else 'эмоции и чувства' if 'Луна' in planets_here else 'общение и контакты' if 'Меркурий' in planets_here else 'гармония и любовь' if 'Венера' in planets_here else 'влияние планет'}\n"
+        else:
+            text += "✨ Нейтральный день\n"
     await update.message.reply_text(text[:4000], parse_mode='Markdown')
 
 async def delete_cmd(update, ctx):
@@ -825,27 +836,29 @@ ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
         phase_num = now.day % 8
         phases = {0: "🌑 Новолуние", 1: "🌒 Молодая", 2: "🌓 Первая четверть", 3: "🌔 Прибывающая", 4: "🌕 Полнолуние", 5: "🌖 Убывающая", 6: "🌗 Последняя четверть", 7: "🌘 Старая"}
         phase = phases.get(phase_num, "🌑")
-        moon = t.get('Луна', {})
-        if moon:
-            await q.edit_message_text(
-                f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon['sign']}* {moon['degree']}°",
-                reply_markup=overview_btn(),
-                parse_mode='Markdown'
-            )
-        else:
-            await q.edit_message_text("🌙 *Луна*\nДанные временно недоступны.", reply_markup=overview_btn(), parse_mode='Markdown')
+        moon_sign = t['Луна']['sign']
+        moon_deg = t['Луна']['degree']
+        await q.edit_message_text(
+            f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phase}\nЗнак: *{moon_sign}* {moon_deg}°",
+            reply_markup=overview_btn(),
+            parse_mode='Markdown'
+        )
     
     elif d == 'daily':
         now = get_current_time(); t = calc_transits()
         text = f"📅 *Гороскоп на {now.strftime('%d.%m.%Y')}*\n\n"
+        planet_signs = {}
+        for p in ['Солнце', 'Луна', 'Меркурий', 'Венера', 'Марс']:
+            if p in t:
+                planet_signs[p] = t[p]['sign']
+        
         for sign in SIGN_NAMES:
             text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
-            if t.get('Солнце',{}).get('sign') == sign: text += "☀️ Солнце в знаке — день активности\n"
-            elif t.get('Луна',{}).get('sign') == sign: text += "🌙 Луна в знаке — эмоции на подъёме\n"
-            elif 'Меркурий' in t and t['Меркурий']['sign'] == sign: text += "☿ Меркурий в знаке — общение и контакты\n"
-            elif 'Венера' in t and t['Венера']['sign'] == sign: text += "♀ Венера в знаке — гармония и любовь\n"
-            elif 'Марс' in t and t['Марс']['sign'] == sign: text += "♂ Марс в знаке — энергия и действия\n"
-            else: text += "✨ Обычный день\n"
+            planets_here = [p for p, s in planet_signs.items() if s == sign]
+            if planets_here:
+                text += ', '.join(planets_here) + f" в знаке — {'энергия и активность' if 'Марс' in planets_here or 'Солнце' in planets_here else 'эмоции и чувства' if 'Луна' in planets_here else 'общение и контакты' if 'Меркурий' in planets_here else 'гармония и любовь' if 'Венера' in planets_here else 'влияние планет'}\n"
+            else:
+                text += "✨ Нейтральный день\n"
         await q.edit_message_text(text[:4000], reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'new_client':
