@@ -29,7 +29,7 @@ except:
 import os
 import swisseph as swe
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
 import requests
@@ -56,6 +56,15 @@ ADMIN_ID = 870114986
 PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
+
+# ========== ПОСТОЯННОЕ МЕНЮ ==========
+def reply_keyboard():
+    return ReplyKeyboardMarkup([
+        ["🌟 Натальная карта", "🔮 Прогноз ИИ"],
+        ["🪐 Транзиты", "💑 Совместимость"],
+        ["🌙 Луна", "📅 Гороскоп"],
+        ["💬 Поддержка", "⚙️ Меню"]
+    ], resize_keyboard=True)
 
 # ========== ВАЛИДАЦИЯ ==========
 def validate_date(day: int, month: int, year: int):
@@ -758,7 +767,7 @@ async def support_msg(update, ctx):
     msg = update.message.text
     text = f"📩 *Сообщение*\n👤 {user.full_name}\n🆔 `{user.id}`\n💬 {msg}\n\n_Ответ:_ `/reply {user.id} текст`"
     await ctx.bot.send_message(chat_id=ADMIN_ID, text=text, parse_mode='Markdown')
-    await update.message.reply_text("✅ *Отправлено!* ответим вам в ближайшее время.", parse_mode='Markdown')
+    await update.message.reply_text("✅ *Отправлено!* ответим вам в ближайшее время.", reply_markup=reply_keyboard(), parse_mode='Markdown')
 
 async def reply_cmd(update, ctx):
     """Админ отвечает пользователю"""
@@ -787,8 +796,9 @@ async def start(update, ctx):
     if ctx.args and ctx.args[0] == 'support':
         await update.message.reply_text(
             "💬 *Поддержка*\n\n"
-            "Напишите ваш вопрос прямо здесь, \n"
+            "Напишите ваш вопрос прямо здесь.\n"
             "Вернемся с ответом очень быстро.",
+            reply_markup=reply_keyboard(),
             parse_mode='Markdown'
         )
         return
@@ -895,19 +905,28 @@ async def btn(update, ctx):
         users[uid]['consent_date'] = datetime.now().strftime('%d.%m.%Y %H:%M')
         save_users()
         
-        await q.edit_message_reply_markup(reply_markup=None)
+        # Удаляем приветственное сообщение
+        await q.message.delete()
+        
+        # Отправляем новое сообщение с подтверждением и меню
         await q.message.reply_text(
             f"{cat_emoji()} *Спасибо! Согласие принято.*\n\n"
             "Для начала работы введите данные своего рождения:\n"
             "`ДД.ММ.ГГГГ` или `ДД.ММ.ГГГГ 14:30 Москва`\n\n"
-            "Или выберите действие в меню:",
+            "Или используйте кнопки ниже для быстрого доступа:",
+            reply_markup=reply_keyboard(),
+            parse_mode='Markdown'
+        )
+        await q.message.reply_text(
+            "🌟 *Меню:*",
             reply_markup=menu_btn(),
             parse_mode='Markdown'
         )
         return
     
     if d == 'start_decline':
-        await q.edit_message_reply_markup(reply_markup=None)
+        # Удаляем приветственное сообщение
+        await q.message.delete()
         await q.message.reply_text(
             "❌ *Вы отказались от обработки данных.*\n\n"
             "Бот не будет сохранять вашу информацию. "
@@ -1245,7 +1264,7 @@ ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
     elif d == 'new_client':
         if uid in users: del users[uid]; save_users()
         ctx.user_data.clear(); ctx.user_data['mode'] = ''
-        await q.edit_message_text("🔄 *Данные очищены!*\n\nВведите данные своего рождения:\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=menu_btn(), parse_mode='Markdown')
+        await q.edit_message_text("🔄 *Данные очищены!*\n\nВведите данные своего рождения:\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=reply_keyboard(), parse_mode='Markdown')
     
     elif d == 'delete_confirm':
         kb = [[InlineKeyboardButton("✅ Да, удалить всё", callback_data="delete_yes")], [InlineKeyboardButton("❌ Нет, отмена", callback_data="back")]]
@@ -1261,7 +1280,7 @@ ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
             "✅ *Все данные удалены! Согласие отозвано.*\n\n"
             "Введите данные своего рождения:\n"
             "`ДД.ММ.ГГГГ ЧЧ:ММ Город`",
-            reply_markup=menu_btn(),
+            reply_markup=reply_keyboard(),
             parse_mode='Markdown'
         )
     
@@ -1269,15 +1288,12 @@ ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
         await q.edit_message_text("💎 *Подписка*\n\nСкоро здесь будет информация о платных возможностях.\n\nА пока — все функции бота бесплатны!", reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'support':
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 Написать вопрос", url="https://t.me/Astromasbot?start=support")],
-            [InlineKeyboardButton("🔙 Назад", callback_data="back")]
-        ])
         await q.edit_message_text(
             "💬 *Поддержка*\n\n"
-            "Нажмите кнопку ниже, чтобы перейти в чат и написать ваш вопрос.\n"
-            "Вернемся с ответом очень быстро",
-            reply_markup=kb,
+            "Напишите ваш вопрос прямо здесь.\n"
+            "Вернемся с ответом очень быстро.\n\n"
+            "Для возврата в меню нажмите кнопку ниже:",
+            reply_markup=reply_keyboard(),
             parse_mode='Markdown'
         )
     
@@ -1287,7 +1303,78 @@ ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
     elif d == 'back': ctx.user_data['mode'] = ''; await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
 
 async def msg(update, ctx):
-    t = update.message.text.strip(); m = ctx.user_data.get('mode',''); uid = update.effective_user.id
+    t = update.message.text.strip()
+    uid = update.effective_user.id
+    
+    # Обработка кнопок постоянного меню
+    if t == "⚙️ Меню":
+        await update.message.reply_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
+        return
+    
+    if t == "💬 Поддержка":
+        await update.message.reply_text(
+            "💬 *Поддержка*\n\n"
+            "Напишите ваш вопрос прямо здесь.\n"
+            "Вернемся с ответом очень быстро.",
+            reply_markup=reply_keyboard(),
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Быстрые команды из постоянного меню
+    quick_actions = {
+        "🌟 Натальная карта": "natal",
+        "🔮 Прогноз ИИ": "forecast",
+        "🪐 Транзиты": "transits",
+        "💑 Совместимость": "compat",
+        "🌙 Луна": "moon",
+        "📅 Гороскоп": "daily",
+    }
+    
+    if t in quick_actions:
+        if quick_actions[t] in ['natal', 'forecast'] and (uid not in users or 'sign' not in users[uid]):
+            await update.message.reply_text(
+                "Сначала введите данные своего рождения:\n"
+                "`ДД.ММ.ГГГГ` или `ДД.ММ.ГГГГ 14:30 Москва`",
+                reply_markup=reply_keyboard(),
+                parse_mode='Markdown'
+            )
+            return
+        
+        if quick_actions[t] == 'transits':
+            transits = calc_transits(); now = get_current_time()
+            text = f"🪐 *Транзиты*\n📅 {now.strftime('%d.%m.%Y %H:%M')} UTC\n\n"
+            for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Раху','Кету']:
+                if p in transits: text += f"{SIGN_EMOJI.get(transits[p]['sign'],'')} {p}: *{transits[p]['sign']}* {transits[p]['degree']}°\n"
+            await update.message.reply_text(text, reply_markup=reply_keyboard(), parse_mode='Markdown')
+            return
+        
+        if quick_actions[t] == 'moon':
+            transits = calc_transits(); now = get_current_time()
+            phase = now.day % 8
+            phases = {0:"🌑 Новолуние",1:"🌒",2:"🌓",3:"🌔",4:"🌕 Полнолуние",5:"🌖",6:"🌗",7:"🌘"}
+            text = f"🌙 *Луна*\n📅 {now.strftime('%d.%m.%Y')}\n\nФаза: {phases.get(phase, '🌑')}\nЗнак: *{transits['Луна']['sign']}* {transits['Луна']['degree']}°"
+            await update.message.reply_text(text, reply_markup=reply_keyboard(), parse_mode='Markdown')
+            return
+        
+        if quick_actions[t] == 'daily':
+            now = get_current_time()
+            text = f"📅 *Сегодня* ({now.strftime('%d.%m.%Y')})\n\n"
+            transits = calc_transits()
+            for sign in SIGN_NAMES:
+                text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
+                if 'Солнце' in transits and sign == transits['Солнце']['sign']: text += "☀️ Солнце в знаке!\n"
+                elif 'Луна' in transits and sign == transits['Луна']['sign']: text += "🌙 Луна в знаке\n"
+                else: text += "✨ Хороший день\n"
+            await update.message.reply_text(text[:4000], reply_markup=reply_keyboard(), parse_mode='Markdown')
+            return
+        
+        if quick_actions[t] == 'compat':
+            ctx.user_data['mode'] = 'compat'
+            await update.message.reply_text("💑 Введите два знака зодиака: *Овен Телец*", reply_markup=reply_keyboard(), parse_mode='Markdown')
+            return
+    
+    m = ctx.user_data.get('mode', '')
     
     # Поддержка: если сообщение не похоже на дату
     if not m and not t.startswith('/') and '.' not in t:
@@ -1301,9 +1388,9 @@ async def msg(update, ctx):
             prompt = f"Совместимость {parts[0]} и {parts[1]}. Процент и 2-3 предложения. Нейтральные обращения."
             fc = ai_client.ask(prompt) or "70% — Хорошая совместимость"
             ctx.user_data['mode'] = ''
-            await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}", reply_markup=overview_btn(), parse_mode='Markdown')
+            await update.message.reply_text(f"💑 *{parts[0]} + {parts[1]}*\n\n{fc}", reply_markup=reply_keyboard(), parse_mode='Markdown')
             return
-        await update.message.reply_text("❌ *Овен Телец*", reply_markup=back_btn(), parse_mode='Markdown')
+        await update.message.reply_text("❌ *Овен Телец*", reply_markup=reply_keyboard(), parse_mode='Markdown')
         return
     
     try:
@@ -1332,13 +1419,16 @@ async def msg(update, ctx):
         users[uid] = {'sign':sign,'day':day,'month':month,'year':year,'hour':hour,'minute':minute,'lat':lat,'lon':lon,'city':city_name,'consent': True,'consent_date': datetime.now().strftime('%d.%m.%Y %H:%M')}
         save_users()
         
-        kb = [[InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
-              [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal")],
-              [InlineKeyboardButton("🏠 Дома", callback_data="houses")],
-              [InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
-              [InlineKeyboardButton("🔄 Новые данные", callback_data="newdata_natal")],
-              [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
-        await update.message.reply_text(f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        await update.message.reply_text(
+            f"✨ *{sign}* ✨\n📅 {day:02d}.{month:02d}.{year}\n🕐 {hour:02d}:{minute:02d}\n📍 {city_name.title()}",
+            reply_markup=reply_keyboard(),
+            parse_mode='Markdown'
+        )
+        await update.message.reply_text(
+            "Выберите действие:",
+            reply_markup=menu_btn(),
+            parse_mode='Markdown'
+        )
     
     except ValueError as e:
         await update.message.reply_text(f"❌ Ошибка: {e}\n\nФорматы:\n• *15.05.1990*\n• *15.05.1990 14:30*\n• *15.05.1990 14:30 Москва*\n• *15.05.1990 Москва*", reply_markup=back_btn(), parse_mode='Markdown')
