@@ -49,7 +49,7 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Структура: Любовь, Карьера, Энергия, Совет. Упоминай планеты и аспекты."
+SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Упоминай планеты и аспекты."
 
 def validate_date(day, month, year):
     if year < 1900 or year > datetime.now().year: raise ValueError(f"Год: 1900-{datetime.now().year}")
@@ -167,9 +167,7 @@ SIGN_RULERS = {
     'Козерог': 'Сатурн', 'Водолей': 'Уран', 'Рыбы': 'Нептун'
 }
 
-# ========== 150+ ГОРОДОВ РОССИИ И МИРА ==========
 CITIES = {
-    # Россия
     'москва': (55.75, 37.62), 'мск': (55.75, 37.62),
     'питер': (59.93, 30.33), 'спб': (59.93, 30.33), 'санкт-петербург': (59.93, 30.33),
     'воронеж': (51.67, 39.18), 'белгород': (50.60, 36.60), 'брянск': (53.25, 34.37),
@@ -202,7 +200,6 @@ CITIES = {
     'абакан': (53.72, 91.44), 'норильск': (69.35, 88.20),
     'владивосток': (43.12, 131.89), 'якутск': (62.03, 129.73), 'хабаровск': (48.48, 135.08),
     'южно-сахалинск': (46.96, 142.74), 'петропавловск-камчатский': (53.02, 158.65), 'магадан': (59.56, 150.80),
-    # Европа
     'лондон': (51.51, -0.13), 'париж': (48.86, 2.35), 'берлин': (52.52, 13.40),
     'рим': (41.90, 12.50), 'мадрид': (40.42, -3.70), 'барселона': (41.39, 2.17),
     'амстердам': (52.37, 4.90), 'вена': (48.21, 16.37), 'прага': (50.09, 14.42),
@@ -213,7 +210,6 @@ CITIES = {
     'мюнхен': (48.14, 11.58), 'гамбург': (53.55, 9.99), 'франкфурт': (50.11, 8.68),
     'киев': (50.45, 30.52), 'минск': (53.90, 27.57), 'рига': (56.95, 24.11),
     'вильнюс': (54.69, 25.28), 'таллин': (59.44, 24.75),
-    # Азия
     'токио': (35.68, 139.76), 'пекин': (39.90, 116.40), 'шанхай': (31.23, 121.47),
     'гонконг': (22.32, 114.17), 'сингапур': (1.35, 103.82), 'сеул': (37.57, 126.98),
     'дубай': (25.20, 55.27), 'абу-даби': (24.45, 54.38), 'доха': (25.29, 51.53),
@@ -223,16 +219,13 @@ CITIES = {
     'бишкек': (42.87, 74.59), 'душанбе': (38.54, 68.78), 'ашхабад': (37.95, 58.38),
     'баку': (40.41, 49.87), 'тбилиси': (41.72, 44.79), 'ереван': (40.18, 44.51),
     'тегеран': (35.69, 51.39), 'багдад': (33.32, 44.42), 'эр-рияд': (24.71, 46.68),
-    # Америка
     'нью-йорк': (40.71, -74.00), 'лос-анджелес': (34.05, -118.24),
     'чикаго': (41.88, -87.63), 'хьюстон': (29.76, -95.37), 'майами': (25.76, -80.19),
     'торонто': (43.65, -79.38), 'ванкувер': (49.28, -123.12), 'мехико': (19.43, -99.13),
     'буэнос-айрес': (-34.60, -58.38), 'сан-паулу': (-23.55, -46.63),
     'сантьяго': (-33.45, -70.67), 'лима': (-12.05, -77.04),
-    # Африка
     'каир': (30.04, 31.24), 'кейптаун': (-33.92, 18.42), 'найроби': (-1.29, 36.82),
     'лагос': (6.45, 3.40), 'йоханнесбург': (-26.20, 28.05),
-    # Австралия и Океания
     'сидней': (-33.87, 151.21), 'мельбурн': (-37.81, 144.96), 'окленд': (-36.85, 174.76),
 }
 
@@ -275,7 +268,6 @@ CITY_TIMEZONES = {
     'сидней': 10, 'мельбурн': 10, 'окленд': 12,
 }
 
-HOUSE_SYSTEMS = {b'P': 'Плацидус', b'K': 'Кох', b'W': 'Whole Sign', b'O': 'Порфирий', b'C': 'Кампанус'}
 PLANETS = {'Солнце': swe.SUN, 'Луна': swe.MOON, 'Меркурий': swe.MERCURY, 'Венера': swe.VENUS,
            'Марс': swe.MARS, 'Юпитер': swe.JUPITER, 'Сатурн': swe.SATURN,
            'Уран': swe.URANUS, 'Нептун': swe.NEPTUNE, 'Плутон': swe.PLUTO}
@@ -303,7 +295,7 @@ def get_timezone(city_name, lat=None, lon=None):
     if lon is not None: return round(lon / 15.0)
     return 3
 
-def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62, city_name='москва', house_system=b'P'):
+def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62, city_name='москва'):
     utc_offset = get_timezone(city_name, lat, lon)
     utc_hour = hour - utc_offset
     if utc_hour < 0: utc_hour += 24
@@ -323,6 +315,7 @@ def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62, city_n
         natal['Кету'] = {'sign': sign_from_lon((rahu_lon + 180) % 360), 'degree': degree_in_sign((rahu_lon + 180) % 360), 'lon': (rahu_lon + 180) % 360}
     except: pass
     if abs(lat) > 66.5: house_system = b'W'
+    else: house_system = b'P'
     try: houses, ascmc = swe.houses(jd, lat, lon, house_system)
     except: houses, ascmc = swe.houses(jd, lat, lon, b'W')
     natal['Асцендент'] = {'sign': sign_from_lon(ascmc[0]), 'degree': degree_in_sign(ascmc[0]), 'lon': ascmc[0]}
@@ -363,13 +356,13 @@ def get_aspects(planets):
         for j in range(i+1, len(names)):
             diff = abs(planets[names[i]]['lon'] - planets[names[j]]['lon']) % 360
             if diff > 180: diff = 360 - diff
-            asp = None
             if diff <= 5: asp = "соединение"
             elif abs(diff-60) <= 5: asp = "секстиль"
             elif abs(diff-90) <= 6: asp = "квадрат"
             elif abs(diff-120) <= 6: asp = "тригон"
             elif abs(diff-180) <= 6: asp = "оппозиция"
-            if asp: aspects_list.append(f"{names[i]} {asp} {names[j]}")
+            else: continue
+            aspects_list.append(f"{names[i]} {asp} {names[j]}")
     return aspects_list
 
 def get_aspects_with_angles(natal):
@@ -379,16 +372,16 @@ def get_aspects_with_angles(natal):
         for j in range(i+1, len(names)):
             diff = abs(natal[names[i]]['lon'] - natal[names[j]]['lon']) % 360
             if diff > 180: diff = 360 - diff
-            asp = None
             if diff <= 5: asp = 'соединение'
             elif abs(diff-60) <= 5: asp = 'секстиль'
             elif abs(diff-90) <= 6: asp = 'квадрат'
             elif abs(diff-120) <= 6: asp = 'тригон'
             elif abs(diff-180) <= 6: asp = 'оппозиция'
-            if asp: aspects.append((names[i], names[j], asp, round(diff, 1)))
+            else: continue
+            aspects.append((names[i], names[j], asp, round(diff, 1)))
     return aspects
 
-def calc_transit_aspects(natal, transits, orb=2.0):
+def calc_transit_aspects(natal, transits):
     aspects = []
     for t_name, t_data in transits.items():
         if t_name in ['Раху', 'Кету']: continue
@@ -399,7 +392,7 @@ def calc_transit_aspects(natal, transits, orb=2.0):
             for asp_name, ideal in [('соединение', 0), ('оппозиция', 180), ('тригон', 120), ('квадрат', 90), ('секстиль', 60)]:
                 orb_dict = {'соединение': 8, 'оппозиция': 8, 'тригон': 8, 'квадрат': 7, 'секстиль': 5}
                 if abs(diff - ideal) <= orb_dict[asp_name]:
-                    direction = "сход" if abs(diff - ideal) < orb else "расход"
+                    direction = "сход" if abs(diff - ideal) < 2 else "расход"
                     aspects.append({'transit_planet': t_name, 'transit_sign': t_data['sign'], 'natal_planet': n_name, 'natal_sign': n_data['sign'], 'aspect': asp_name, 'angle': round(diff, 1), 'direction': direction, 'transit_house': None})
     for asp in aspects:
         t_lon = transits[asp['transit_planet']]['lon']
@@ -509,6 +502,8 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
         mid_angle = (house_angle + (next_angle - house_angle) % (2*np.pi) / 2) % (2*np.pi)
         ax.annotate(str(house['house_num']), xy=(mid_angle, 1.30), ha='center', va='center', fontsize=10, color='#1a1a1a', weight='bold', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor='#cccccc', alpha=0.9))
         if house['house_num'] == 1: ax.annotate('ASC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
+        elif house['house_num'] == 4: ax.annotate('IC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
+        elif house['house_num'] == 7: ax.annotate('DSC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
         elif house['house_num'] == 10: ax.annotate('MC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
     
     title = 'НАТАЛЬНАЯ КАРТА'
@@ -534,11 +529,27 @@ async def reply_cmd(update, ctx):
         await update.message.reply_text("✅ Отправлено")
     except: await update.message.reply_text("❌ Ошибка")
 
+# ===== КОМАНДЫ МЕНЮ (дублируют основной функционал) =====
 async def natal_cmd(update, ctx):
-    await update.message.reply_text("🌟 *Натальная карта*\nВведите: `ДД.ММ.ГГГГ ЧЧ:ММ Город`", parse_mode='Markdown')
+    uid = update.effective_user.id
+    if uid in users and 'sign' in users[uid]:
+        u = users[uid]
+        natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
+        img = draw_natal_chart_pro(natal, u['city'], f"{u['hour']:02d}:{u['minute']:02d}")
+        await update.message.reply_photo(photo=img)
+        await update.message.reply_text(f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n☀ {natal['Солнце']['sign']} | 🌙 {natal['Луна']['sign']} | ASC {natal['Асцендент']['sign']}", reply_markup=overview_btn(), parse_mode='Markdown')
+    else:
+        await update.message.reply_text("🌟 *Натальная карта*\nВведите: `ДД.ММ.ГГГГ ЧЧ:ММ Город`", parse_mode='Markdown')
 
 async def forecast_cmd(update, ctx):
-    await update.message.reply_text("🔮 *Прогноз ИИ*\nВведите: `ДД.ММ.ГГГГ ЧЧ:ММ Город`", parse_mode='Markdown')
+    uid = update.effective_user.id
+    if uid in users and 'sign' in users[uid]:
+        await update.message.reply_text(f"✨ *{users[uid]['sign']}* — выберите период:", reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("📅 День", callback_data="f_day"), InlineKeyboardButton("📆 Неделя", callback_data="f_week")],
+            [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")]
+        ]), parse_mode='Markdown')
+    else:
+        await update.message.reply_text("🔮 *Прогноз ИИ*\nВведите: `ДД.ММ.ГГГГ ЧЧ:ММ Город`", parse_mode='Markdown')
 
 async def transits_cmd(update, ctx):
     t = calc_transits(); now = get_current_time()
@@ -557,12 +568,15 @@ async def moon_cmd(update, ctx):
 
 async def daily_cmd(update, ctx):
     now = get_current_time(); t = calc_transits()
-    text = f"📅 *{now.strftime('%d.%m.%Y')}*\n\n"
+    text = f"📅 *Гороскоп на {now.strftime('%d.%m.%Y')}*\n\n"
     for sign in SIGN_NAMES:
         text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
-        if t.get('Солнце',{}).get('sign') == sign: text += "☀️\n"
-        elif t.get('Луна',{}).get('sign') == sign: text += "🌙\n"
-        else: text += "✨\n"
+        if t.get('Солнце',{}).get('sign') == sign: text += "☀️ Солнце в знаке — день активности\n"
+        elif t.get('Луна',{}).get('sign') == sign: text += "🌙 Луна в знаке — эмоции на подъёме\n"
+        elif 'Меркурий' in t and t['Меркурий']['sign'] == sign: text += "☿ Меркурий в знаке — общение и контакты\n"
+        elif 'Венера' in t and t['Венера']['sign'] == sign: text += "♀ Венера в знаке — гармония и любовь\n"
+        elif 'Марс' in t and t['Марс']['sign'] == sign: text += "♂ Марс в знаке — энергия и действия\n"
+        else: text += "✨ Обычный день\n"
     await update.message.reply_text(text[:4000], parse_mode='Markdown')
 
 async def delete_cmd(update, ctx):
@@ -634,7 +648,7 @@ async def btn(update, ctx):
                   [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
             await q.edit_message_text(f"✨ *{users[uid]['sign']}* — период:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         else:
-            await q.edit_message_text("🔮 *Прогноз ИИ*\n\n📝 С временем: `15.05.1990 14:30 Москва`\n📝 Без времени: `15.05.1990 Москва`",
+            await q.edit_message_text("🔮 *Прогноз ИИ*\n\n📝 `15.05.1990 14:30 Москва`\n📝 `15.05.1990 Москва`",
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("📝 С временем", callback_data="newdata"), InlineKeyboardButton("📝 Без времени", callback_data="newdata_noon")],
                     [InlineKeyboardButton("🔙 Назад", callback_data="back")]
@@ -686,7 +700,7 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
                 m_house = get_house(m_lon, natal['houses'])
                 moon_data.append(f"{h:02d}:{m_sign}({m_house}д)")
             
-            prompt = f"""Прогноз на день. {now.strftime('%d.%m.%Y')}
+            prompt = f"""Прогноз на день. Начинай сразу с прогноза, без даты и приветствий.
 {astro}
 Луна: {' → '.join(moon_data)}
 
@@ -694,13 +708,13 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
             max_tok = 350
         
         elif d == 'f_month':
-            prompt = f"""Прогноз на месяц. {now.strftime('%d.%m.%Y')}
+            prompt = f"""Прогноз на месяц. Начинай сразу с прогноза, без даты и приветствий.
 {astro}
 
 Дай 10-12 предл.: любовь, карьера, энергия, совет. Упоминай транзитные аспекты."""
             max_tok = 1200
         else:
-            prompt = f"""Прогноз на {period}. {now.strftime('%d.%m.%Y')}
+            prompt = f"""Прогноз на {period}. Начинай сразу с прогноза, без даты и приветствий.
 {astro}
 
 Дай 6-8 предл.: любовь, карьера, энергия, совет. Упоминай аспекты."""
@@ -747,7 +761,7 @@ ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
 ☊:{natal['Раху']['sign']} | ☋:{natal['Кету']['sign']}
 Аспекты: {', '.join(aspect_strs) if aspect_strs else 'нет'}
 """
-        prompt = f"""Разбор натальной карты.
+        prompt = f"""Разбор натальной карты. Начинай сразу с разбора, без даты и приветствий.
 {astro_data}
 
 Структура: ASC, Луна, Солнце, Меркурий, Венера, Марс, Узлы. 20-25 предл. Упоминай аспекты."""
@@ -791,12 +805,15 @@ ASC:{asc_sign} (упр. {asc_ruler} в {asc_ruler_house}д)
     
     elif d == 'daily':
         now = get_current_time(); t = calc_transits()
-        text = f"📅 *{now.strftime('%d.%m.%Y')}*\n\n"
+        text = f"📅 *Гороскоп на {now.strftime('%d.%m.%Y')}*\n\n"
         for sign in SIGN_NAMES:
             text += f"{SIGN_EMOJI.get(sign,'')} *{sign}*: "
-            if t.get('Солнце',{}).get('sign') == sign: text += "☀️\n"
-            elif t.get('Луна',{}).get('sign') == sign: text += "🌙\n"
-            else: text += "✨\n"
+            if t.get('Солнце',{}).get('sign') == sign: text += "☀️ Солнце в знаке — день активности\n"
+            elif t.get('Луна',{}).get('sign') == sign: text += "🌙 Луна в знаке — эмоции на подъёме\n"
+            elif 'Меркурий' in t and t['Меркурий']['sign'] == sign: text += "☿ Меркурий в знаке — общение и контакты\n"
+            elif 'Венера' in t and t['Венера']['sign'] == sign: text += "♀ Венера в знаке — гармония и любовь\n"
+            elif 'Марс' in t and t['Марс']['sign'] == sign: text += "♂ Марс в знаке — энергия и действия\n"
+            else: text += "✨ Обычный день\n"
         await q.edit_message_text(text[:4000], reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'new_client':
