@@ -4,11 +4,9 @@ import os as _os
 import socket
 import random
 
-# Ждём, пока старый инстанс точно умрёт
 print("⏳ Ожидание 8с перед стартом для избежания conflict...")
 time.sleep(8)
 
-# Проверяем, не запущен ли уже бот
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('localhost', port)) == 0
@@ -21,7 +19,6 @@ lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     lock_socket.bind(('localhost', 9999))
     lock_socket.listen(1)
-    print(f"🔒 Блокировка на порту 9999 (PID: {_os.getpid()})")
 except:
     print("❌ Не удалось занять порт. Выходим...")
     sys.exit(0)
@@ -43,100 +40,68 @@ from io import BytesIO
 import atexit
 import json
 
-# ========== ЭМОДЗИ КОТА-АСТРОЛОГА ==========
 CAT_EMOJI = ['🐱', '😺', '😸', '😻', '😼', '😽', '🙀', '😿', '😾', '🐈', '🐈‍⬛', '✨🐱', '🐱✨', '🔮🐱', '🐱🔮', '🌟🐱', '🐱🌟']
+def cat_emoji(): return random.choice(CAT_EMOJI)
 
-def cat_emoji():
-    return random.choice(CAT_EMOJI)
-
-# ========== ID АДМИНА ==========
 ADMIN_ID = 870114986
 
-# ========== URL ДОКУМЕНТОВ ==========
 PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-# ========== СИСТЕМНЫЙ ПРОМПТ (компактный) ==========
 SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Структура: Любовь, Карьера, Энергия, Совет. Упоминай планеты и аспекты."
 
-# ========== ВАЛИДАЦИЯ ==========
 def validate_date(day, month, year):
-    if year < 1900 or year > datetime.now().year:
-        raise ValueError(f"Год: 1900-{datetime.now().year}")
-    if not (1 <= month <= 12):
-        raise ValueError("Месяц: 1-12")
-    if not (1 <= day <= 31):
-        raise ValueError("День: 1-31")
+    if year < 1900 or year > datetime.now().year: raise ValueError(f"Год: 1900-{datetime.now().year}")
+    if not (1 <= month <= 12): raise ValueError("Месяц: 1-12")
+    if not (1 <= day <= 31): raise ValueError("День: 1-31")
     datetime(year, month, day)
     return True
 
 def validate_time(hour, minute):
-    if not (0 <= hour <= 23):
-        raise ValueError("Часы: 0-23")
-    if not (0 <= minute <= 59):
-        raise ValueError("Минуты: 0-59")
+    if not (0 <= hour <= 23): raise ValueError("Часы: 0-23")
+    if not (0 <= minute <= 59): raise ValueError("Минуты: 0-59")
     return True
 
-# ========== AI КЛИЕНТ ==========
 class AIClient:
     def __init__(self, deepseek_token=None, hf_token=None):
-        self.deepseek_token = deepseek_token
-        self.hf_token = hf_token
+        self.deepseek_token = deepseek_token; self.hf_token = hf_token
         self.deepseek_url = "https://api.deepseek.com/v1/chat/completions"
         self.hf_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
-        self.max_retries = 2
-        self.timeout = 30
+        self.max_retries = 2; self.timeout = 30
 
     def ask(self, prompt, max_tokens=300):
         if self.deepseek_token:
             result = self._ask_deepseek(prompt, max_tokens)
             if result: return result
-        if self.hf_token:
-            return self._ask_huggingface(prompt, max_tokens)
+        if self.hf_token: return self._ask_huggingface(prompt, max_tokens)
         return None
 
     def _ask_deepseek(self, prompt, max_tokens):
         headers = {"Authorization": f"Bearer {self.deepseek_token}", "Content-Type": "application/json"}
-        payload = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": max_tokens,
-            "temperature": 0.5
-        }
-        for attempt in range(self.max_retries):
+        payload = {"model": "deepseek-chat", "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}], "max_tokens": max_tokens, "temperature": 0.5}
+        for _ in range(self.max_retries):
             try:
-                response = requests.post(self.deepseek_url, headers=headers, json=payload, timeout=self.timeout)
-                if response.status_code == 200:
-                    data = response.json()
-                    text = data["choices"][0]["message"]["content"].strip()
+                resp = requests.post(self.deepseek_url, headers=headers, json=payload, timeout=self.timeout)
+                if resp.status_code == 200:
+                    text = resp.json()["choices"][0]["message"]["content"].strip()
                     if text and len(text) > 10: return text
-                elif response.status_code == 429:
-                    time.sleep(15 * (attempt + 1))
-                else:
-                    time.sleep(3)
+                elif resp.status_code == 429: time.sleep(15)
+                else: time.sleep(3)
             except: time.sleep(3)
         return None
 
     def _ask_huggingface(self, prompt, max_tokens):
         headers = {"Authorization": f"Bearer {self.hf_token}"}
-        for attempt in range(self.max_retries):
+        for _ in range(self.max_retries):
             try:
-                response = requests.post(
-                    self.hf_url, headers=headers,
-                    json={"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}},
-                    timeout=self.timeout
-                )
-                if response.status_code == 200:
-                    data = response.json()
+                resp = requests.post(self.hf_url, headers=headers, json={"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}, timeout=self.timeout)
+                if resp.status_code == 200:
+                    data = resp.json()
                     if isinstance(data, list) and data:
                         text = data[0].get("generated_text", "").strip()
                         if text and len(text) > 10: return text
-                elif response.status_code in [503, 429]:
-                    time.sleep(15)
+                elif resp.status_code in [503, 429]: time.sleep(15)
                 else: time.sleep(3)
             except: time.sleep(3)
         return None
@@ -149,12 +114,10 @@ class AIClient:
             if split_pos == -1: split_pos = text.rfind('. ', 0, max_length)
             if split_pos == -1: split_pos = text.rfind(' ', 0, max_length)
             if split_pos == -1: split_pos = max_length
-            parts.append(text[:split_pos].strip())
-            text = text[split_pos:].strip()
+            parts.append(text[:split_pos].strip()); text = text[split_pos:].strip()
         if text: parts.append(text)
         return parts
 
-# ========== JSON ХРАНИЛИЩЕ ==========
 USERS_FILE = 'data/users.json'
 
 def save_users():
@@ -178,15 +141,12 @@ DEEPSEEK_TOKEN = os.getenv("DEEPSEEK_TOKEN")
 HF_TOKEN = os.getenv("HF_TOKEN")
 ai_client = AIClient(deepseek_token=DEEPSEEK_TOKEN, hf_token=HF_TOKEN)
 
-# ===== KEEP-ALIVE =====
 class PingHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200); self.end_headers(); self.wfile.write(b"OK")
+    def do_GET(self): self.send_response(200); self.end_headers(); self.wfile.write(b"OK")
     def log_message(self, format, *args): pass
 
 def run_keepalive():
-    port = int(os.getenv("PORT", 10000))
-    HTTPServer(('0.0.0.0', port), PingHandler).serve_forever()
+    HTTPServer(('0.0.0.0', int(os.getenv("PORT", 10000))), PingHandler).serve_forever()
 
 swe.set_ephe_path(None)
 
@@ -200,7 +160,6 @@ ZODIAC_SIGNS = {
     'Козерог': (12,22,1,19), 'Водолей': (1,20,2,18), 'Рыбы': (2,19,3,20)
 }
 
-# ========== ПРАВИТЕЛИ ЗНАКОВ ==========
 SIGN_RULERS = {
     'Овен': 'Марс', 'Телец': 'Венера', 'Близнецы': 'Меркурий',
     'Рак': 'Луна', 'Лев': 'Солнце', 'Дева': 'Меркурий',
@@ -208,33 +167,123 @@ SIGN_RULERS = {
     'Козерог': 'Сатурн', 'Водолей': 'Уран', 'Рыбы': 'Нептун'
 }
 
+# ========== 150+ ГОРОДОВ РОССИИ И МИРА ==========
 CITIES = {
+    # Россия
     'москва': (55.75, 37.62), 'мск': (55.75, 37.62),
-    'питер': (59.93, 30.33), 'спб': (59.93, 30.33),
-    'екатеринбург': (56.84, 60.65), 'екб': (56.84, 60.65),
-    'новосибирск': (55.03, 82.92), 'нск': (55.03, 82.92),
-    'казань': (55.79, 49.12), 'сочи': (43.59, 39.73),
-    'владивосток': (43.12, 131.89), 'краснодар': (45.04, 38.98),
+    'питер': (59.93, 30.33), 'спб': (59.93, 30.33), 'санкт-петербург': (59.93, 30.33),
+    'воронеж': (51.67, 39.18), 'белгород': (50.60, 36.60), 'брянск': (53.25, 34.37),
+    'владимир': (56.14, 40.40), 'иваново': (56.99, 40.97), 'калуга': (54.53, 36.28),
+    'кострома': (57.77, 40.93), 'курск': (51.74, 36.19), 'липецк': (52.60, 39.60),
+    'орёл': (52.97, 36.08), 'орел': (52.97, 36.08), 'рязань': (54.63, 39.69),
+    'смоленск': (54.78, 32.05), 'тамбов': (52.73, 41.44), 'тверь': (56.86, 35.92),
+    'тула': (54.20, 37.62), 'ярославль': (57.63, 39.87),
+    'калининград': (54.71, 20.51), 'архангельск': (64.54, 40.54), 'вологда': (59.22, 39.88),
+    'мурманск': (68.97, 33.08), 'петрозаводск': (61.79, 34.36), 'сыктывкар': (61.67, 50.82),
+    'великий новгород': (58.52, 31.27), 'псков': (57.81, 28.35), 'череповец': (59.13, 37.91),
+    'ростов': (47.23, 39.72), 'ростов-на-дону': (47.23, 39.72), 'краснодар': (45.04, 38.98),
+    'сочи': (43.59, 39.73), 'волгоград': (48.71, 44.50), 'астрахань': (46.35, 48.04),
+    'симферополь': (44.95, 34.10), 'севастополь': (44.61, 33.52),
+    'пятигорск': (44.05, 43.06), 'ставрополь': (45.04, 41.97), 'махачкала': (42.98, 47.50),
+    'грозный': (43.31, 45.69), 'нальчик': (43.48, 43.61), 'владикавказ': (43.02, 44.68),
+    'нижний': (56.33, 44.00), 'нн': (56.33, 44.00), 'нижний новгород': (56.33, 44.00),
+    'казань': (55.79, 49.12), 'самара': (53.20, 50.15), 'уфа': (54.74, 55.97),
+    'пермь': (58.01, 56.25), 'саратов': (51.53, 46.03), 'тольятти': (53.53, 49.35),
+    'ижевск': (56.85, 53.23), 'ульяновск': (54.33, 48.39), 'чебоксары': (56.13, 47.25),
+    'киров': (58.60, 49.66), 'оренбург': (51.77, 55.10), 'пенза': (53.20, 45.00),
+    'саранск': (54.19, 45.18), 'набережные челны': (55.74, 52.41), 'йошкар-ола': (56.63, 47.90),
+    'екатеринбург': (56.84, 60.65), 'екб': (56.84, 60.65), 'челябинск': (55.16, 61.43),
+    'тюмень': (57.15, 65.53), 'магнитогорск': (53.42, 58.98), 'сургут': (61.25, 73.42),
+    'нижний тагил': (57.92, 59.98), 'курган': (55.47, 65.35), 'нижневартовск': (60.94, 76.58),
+    'новосибирск': (55.03, 82.92), 'нск': (55.03, 82.92), 'омск': (54.99, 73.37),
+    'красноярск': (56.02, 92.87), 'иркутск': (52.29, 104.30), 'барнаул': (53.35, 83.78),
+    'новокузнецк': (53.76, 87.14), 'кемерово': (55.36, 86.08), 'томск': (56.50, 84.97),
+    'улан-удэ': (51.83, 107.61), 'чита': (52.03, 113.50), 'братск': (56.15, 101.63),
+    'абакан': (53.72, 91.44), 'норильск': (69.35, 88.20),
+    'владивосток': (43.12, 131.89), 'якутск': (62.03, 129.73), 'хабаровск': (48.48, 135.08),
+    'южно-сахалинск': (46.96, 142.74), 'петропавловск-камчатский': (53.02, 158.65), 'магадан': (59.56, 150.80),
+    # Европа
     'лондон': (51.51, -0.13), 'париж': (48.86, 2.35), 'берлин': (52.52, 13.40),
-    'нью-йорк': (40.71, -74.00), 'токио': (35.68, 139.76), 'дубай': (25.20, 55.27),
+    'рим': (41.90, 12.50), 'мадрид': (40.42, -3.70), 'барселона': (41.39, 2.17),
+    'амстердам': (52.37, 4.90), 'вена': (48.21, 16.37), 'прага': (50.09, 14.42),
+    'варшава': (52.23, 21.01), 'будапешт': (47.50, 19.04), 'стокгольм': (59.33, 18.07),
+    'осло': (59.91, 10.75), 'хельсинки': (60.17, 24.94), 'афины': (37.98, 23.73),
+    'стамбул': (41.01, 28.98), 'дублин': (53.35, -6.26), 'лиссабон': (38.72, -9.14),
+    'цюрих': (47.38, 8.54), 'женева': (46.20, 6.14), 'милан': (45.47, 9.19),
+    'мюнхен': (48.14, 11.58), 'гамбург': (53.55, 9.99), 'франкфурт': (50.11, 8.68),
+    'киев': (50.45, 30.52), 'минск': (53.90, 27.57), 'рига': (56.95, 24.11),
+    'вильнюс': (54.69, 25.28), 'таллин': (59.44, 24.75),
+    # Азия
+    'токио': (35.68, 139.76), 'пекин': (39.90, 116.40), 'шанхай': (31.23, 121.47),
+    'гонконг': (22.32, 114.17), 'сингапур': (1.35, 103.82), 'сеул': (37.57, 126.98),
+    'дубай': (25.20, 55.27), 'абу-даби': (24.45, 54.38), 'доха': (25.29, 51.53),
+    'дели': (28.61, 77.23), 'мумбаи': (19.08, 72.88), 'банкок': (13.75, 100.50),
+    'джакарта': (-6.21, 106.85), 'манила': (14.60, 120.98),
+    'ташкент': (41.30, 69.24), 'алматы': (43.26, 76.93), 'астана': (51.17, 71.43),
+    'бишкек': (42.87, 74.59), 'душанбе': (38.54, 68.78), 'ашхабад': (37.95, 58.38),
+    'баку': (40.41, 49.87), 'тбилиси': (41.72, 44.79), 'ереван': (40.18, 44.51),
+    'тегеран': (35.69, 51.39), 'багдад': (33.32, 44.42), 'эр-рияд': (24.71, 46.68),
+    # Америка
+    'нью-йорк': (40.71, -74.00), 'лос-анджелес': (34.05, -118.24),
+    'чикаго': (41.88, -87.63), 'хьюстон': (29.76, -95.37), 'майами': (25.76, -80.19),
+    'торонто': (43.65, -79.38), 'ванкувер': (49.28, -123.12), 'мехико': (19.43, -99.13),
+    'буэнос-айрес': (-34.60, -58.38), 'сан-паулу': (-23.55, -46.63),
+    'сантьяго': (-33.45, -70.67), 'лима': (-12.05, -77.04),
+    # Африка
+    'каир': (30.04, 31.24), 'кейптаун': (-33.92, 18.42), 'найроби': (-1.29, 36.82),
+    'лагос': (6.45, 3.40), 'йоханнесбург': (-26.20, 28.05),
+    # Австралия и Океания
+    'сидней': (-33.87, 151.21), 'мельбурн': (-37.81, 144.96), 'окленд': (-36.85, 174.76),
 }
 
 CITY_TIMEZONES = {
-    'москва': 3, 'мск': 3, 'питер': 3, 'спб': 3,
-    'екатеринбург': 5, 'екб': 5, 'новосибирск': 7, 'нск': 7,
-    'казань': 3, 'сочи': 3, 'владивосток': 10, 'краснодар': 3,
-    'лондон': 0, 'париж': 1, 'берлин': 1, 'нью-йорк': -5, 'токио': 9, 'дубай': 4,
+    'москва': 3, 'мск': 3, 'питер': 3, 'спб': 3, 'санкт-петербург': 3,
+    'воронеж': 3, 'белгород': 3, 'брянск': 3, 'владимир': 3, 'иваново': 3,
+    'калуга': 3, 'кострома': 3, 'курск': 3, 'липецк': 3, 'орёл': 3, 'орел': 3,
+    'рязань': 3, 'смоленск': 3, 'тамбов': 3, 'тверь': 3, 'тула': 3, 'ярославль': 3,
+    'калининград': 2, 'архангельск': 3, 'вологда': 3, 'мурманск': 3,
+    'петрозаводск': 3, 'сыктывкар': 3, 'великий новгород': 3, 'псков': 3, 'череповец': 3,
+    'ростов': 3, 'ростов-на-дону': 3, 'краснодар': 3, 'сочи': 3, 'волгоград': 3,
+    'астрахань': 4, 'симферополь': 3, 'севастополь': 3,
+    'пятигорск': 3, 'ставрополь': 3, 'махачкала': 3, 'грозный': 3,
+    'нальчик': 3, 'владикавказ': 3,
+    'нижний': 3, 'нн': 3, 'нижний новгород': 3, 'казань': 3,
+    'самара': 4, 'уфа': 5, 'пермь': 5, 'оренбург': 5,
+    'екатеринбург': 5, 'екб': 5, 'челябинск': 5, 'тюмень': 5,
+    'магнитогорск': 5, 'сургут': 5, 'нижний тагил': 5, 'курган': 5,
+    'нижневартовск': 5,
+    'омск': 6, 'новосибирск': 7, 'нск': 7, 'красноярск': 7, 'барнаул': 7,
+    'новокузнецк': 7, 'кемерово': 7, 'томск': 7, 'абакан': 7, 'норильск': 7,
+    'иркутск': 8, 'улан-удэ': 8, 'чита': 9, 'братск': 8,
+    'владивосток': 10, 'хабаровск': 10, 'южно-сахалинск': 11,
+    'петропавловск-камчатский': 12, 'магадан': 11, 'якутск': 9,
+    'лондон': 0, 'париж': 1, 'берлин': 1, 'рим': 1, 'мадрид': 1, 'барселона': 1,
+    'амстердам': 1, 'вена': 1, 'прага': 1, 'варшава': 1, 'будапешт': 1,
+    'стокгольм': 1, 'осло': 1, 'хельсинки': 2, 'афины': 2, 'стамбул': 3, 'дублин': 0,
+    'лиссабон': 0, 'цюрих': 1, 'женева': 1, 'милан': 1, 'мюнхен': 1, 'гамбург': 1, 'франкфурт': 1,
+    'киев': 2, 'минск': 3, 'рига': 2, 'вильнюс': 2, 'таллин': 2,
+    'токио': 9, 'пекин': 8, 'шанхай': 8, 'гонконг': 8, 'сингапур': 8, 'сеул': 9,
+    'дубай': 4, 'абу-даби': 4, 'доха': 3, 'дели': 5.5, 'мумбаи': 5.5, 'банкок': 7,
+    'джакарта': 7, 'манила': 8,
+    'ташкент': 5, 'алматы': 5, 'астана': 5, 'бишкек': 6, 'душанбе': 5, 'ашхабад': 5,
+    'баку': 4, 'тбилиси': 4, 'ереван': 4,
+    'тегеран': 3.5, 'багдад': 3, 'эр-рияд': 3,
+    'нью-йорк': -5, 'лос-анджелес': -8, 'чикаго': -6, 'хьюстон': -6, 'майами': -5,
+    'торонто': -5, 'ванкувер': -8, 'мехико': -6,
+    'буэнос-айрес': -3, 'сан-паулу': -3, 'сантьяго': -4, 'лима': -5,
+    'каир': 2, 'кейптаун': 2, 'найроби': 3, 'лагос': 1, 'йоханнесбург': 2,
+    'сидней': 10, 'мельбурн': 10, 'окленд': 12,
 }
 
-PLANETS = {'Солнце': swe.SUN, 'Луна': swe.MOON, 'Меркурий': swe.MERCURY,
-           'Венера': swe.VENUS, 'Марс': swe.MARS, 'Юпитер': swe.JUPITER,
-           'Сатурн': swe.SATURN, 'Уран': swe.URANUS, 'Нептун': swe.NEPTUNE, 'Плутон': swe.PLUTO}
+HOUSE_SYSTEMS = {b'P': 'Плацидус', b'K': 'Кох', b'W': 'Whole Sign', b'O': 'Порфирий', b'C': 'Кампанус'}
+PLANETS = {'Солнце': swe.SUN, 'Луна': swe.MOON, 'Меркурий': swe.MERCURY, 'Венера': swe.VENUS,
+           'Марс': swe.MARS, 'Юпитер': swe.JUPITER, 'Сатурн': swe.SATURN,
+           'Уран': swe.URANUS, 'Нептун': swe.NEPTUNE, 'Плутон': swe.PLUTO}
 
 if os.path.exists(USERS_FILE):
     try:
         with open(USERS_FILE) as f:
-            if any('day' not in d for d in json.load(f).values()):
-                os.remove(USERS_FILE)
+            if any('day' not in d for d in json.load(f).values()): os.remove(USERS_FILE)
     except: os.path.exists(USERS_FILE) and os.remove(USERS_FILE)
 
 load_users()
@@ -268,17 +317,14 @@ def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62, city_n
             speed = result[3] if len(result) > 3 else 0
             natal[name] = {'sign': sign_from_lon(lon_deg), 'degree': degree_in_sign(lon_deg), 'lon': lon_deg, 'retro': speed < 0}
         except: continue
-    
     try:
         rahu_lon = swe.calc_ut(jd, swe.MEAN_NODE)[0][0]
         natal['Раху'] = {'sign': sign_from_lon(rahu_lon), 'degree': degree_in_sign(rahu_lon), 'lon': rahu_lon}
         natal['Кету'] = {'sign': sign_from_lon((rahu_lon + 180) % 360), 'degree': degree_in_sign((rahu_lon + 180) % 360), 'lon': (rahu_lon + 180) % 360}
     except: pass
-    
     if abs(lat) > 66.5: house_system = b'W'
     try: houses, ascmc = swe.houses(jd, lat, lon, house_system)
     except: houses, ascmc = swe.houses(jd, lat, lon, b'W')
-    
     natal['Асцендент'] = {'sign': sign_from_lon(ascmc[0]), 'degree': degree_in_sign(ascmc[0]), 'lon': ascmc[0]}
     natal['MC'] = {'sign': sign_from_lon(ascmc[1]), 'degree': degree_in_sign(ascmc[1]), 'lon': ascmc[1]}
     natal['houses'] = [{'house_num': i+1, 'sign': sign_from_lon(houses[i]), 'degree': degree_in_sign(houses[i]), 'lon': houses[i]} for i in range(12)]
@@ -350,18 +396,11 @@ def calc_transit_aspects(natal, transits, orb=2.0):
             if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']: continue
             diff = abs(t_data['lon'] - n_data['lon']) % 360
             if diff > 180: diff = 360 - diff
-            
             for asp_name, ideal in [('соединение', 0), ('оппозиция', 180), ('тригон', 120), ('квадрат', 90), ('секстиль', 60)]:
                 orb_dict = {'соединение': 8, 'оппозиция': 8, 'тригон': 8, 'квадрат': 7, 'секстиль': 5}
                 if abs(diff - ideal) <= orb_dict[asp_name]:
                     direction = "сход" if abs(diff - ideal) < orb else "расход"
-                    aspects.append({
-                        'transit_planet': t_name, 'transit_sign': t_data['sign'],
-                        'natal_planet': n_name, 'natal_sign': n_data['sign'],
-                        'aspect': asp_name, 'angle': round(diff, 1), 'direction': direction,
-                        'transit_house': None
-                    })
-    
+                    aspects.append({'transit_planet': t_name, 'transit_sign': t_data['sign'], 'natal_planet': n_name, 'natal_sign': n_data['sign'], 'aspect': asp_name, 'angle': round(diff, 1), 'direction': direction, 'transit_house': None})
     for asp in aspects:
         t_lon = transits[asp['transit_planet']]['lon']
         for i, h in enumerate(natal['houses']):
@@ -370,7 +409,6 @@ def calc_transit_aspects(natal, transits, orb=2.0):
                 if h['lon'] <= t_lon < next_h['lon']: asp['transit_house'] = h['house_num']; break
             else:
                 if t_lon >= h['lon'] or t_lon < next_h['lon']: asp['transit_house'] = h['house_num']; break
-    
     return sorted(aspects, key=lambda x: x['angle'])
 
 def get_house(planet_lon, houses):
@@ -387,8 +425,7 @@ def parse_city(city_str):
     if city_key in CITIES: return CITIES[city_key][0], CITIES[city_key][1], city_key
     return 55.75, 37.62, 'москва'
 
-def back_btn():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]])
+def back_btn(): return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]])
 
 def menu_btn():
     return InlineKeyboardMarkup([
@@ -410,7 +447,6 @@ def overview_btn():
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
     ])
 
-# ===== ГРАФИЧЕСКАЯ КАРТА (компактная) =====
 def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
     ax.set_theta_zero_location('N'); ax.set_theta_direction(1); ax.set_ylim(0, 1.5)
@@ -484,7 +520,6 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     buf.seek(0); plt.close()
     return buf
 
-# ===== ПОДДЕРЖКА =====
 async def support_msg(update, ctx):
     user = update.effective_user
     await ctx.bot.send_message(ADMIN_ID, f"📩 *Сообщение*\n👤 {user.full_name}\n🆔 `{user.id}`\n💬 {update.message.text}\n\n_Ответ:_ `/reply {user.id} текст`", parse_mode='Markdown')
@@ -499,23 +534,27 @@ async def reply_cmd(update, ctx):
         await update.message.reply_text("✅ Отправлено")
     except: await update.message.reply_text("❌ Ошибка")
 
-# ===== КОМАНДЫ МЕНЮ =====
 async def natal_cmd(update, ctx):
     await update.message.reply_text("🌟 *Натальная карта*\nВведите: `ДД.ММ.ГГГГ ЧЧ:ММ Город`", parse_mode='Markdown')
+
 async def forecast_cmd(update, ctx):
     await update.message.reply_text("🔮 *Прогноз ИИ*\nВведите: `ДД.ММ.ГГГГ ЧЧ:ММ Город`", parse_mode='Markdown')
+
 async def transits_cmd(update, ctx):
     t = calc_transits(); now = get_current_time()
     text = f"🪐 *Транзиты* {now.strftime('%d.%m.%Y %H:%M')}\n\n"
     for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн','Раху','Кету']:
         if p in t: text += f"{SIGN_EMOJI.get(t[p]['sign'],'')} {p}: *{t[p]['sign']}* {t[p]['degree']}°{' ℞' if t[p].get('retro') else ''}\n"
     await update.message.reply_text(text, parse_mode='Markdown')
+
 async def compat_cmd(update, ctx):
     await update.message.reply_text("💑 *Совместимость*\nВведите: *Овен Телец*", parse_mode='Markdown')
+
 async def moon_cmd(update, ctx):
     t = calc_transits(); now = get_current_time()
     phase = {0:"🌑",1:"🌒",2:"🌓",3:"🌔",4:"🌕",5:"🌖",6:"🌗",7:"🌘"}.get(now.day % 8, "🌑")
     await update.message.reply_text(f"🌙 *Луна* {now.strftime('%d.%m.%Y')}\n{phase} *{t['Луна']['sign']}* {t['Луна']['degree']}°", parse_mode='Markdown')
+
 async def daily_cmd(update, ctx):
     now = get_current_time(); t = calc_transits()
     text = f"📅 *{now.strftime('%d.%m.%Y')}*\n\n"
@@ -525,14 +564,15 @@ async def daily_cmd(update, ctx):
         elif t.get('Луна',{}).get('sign') == sign: text += "🌙\n"
         else: text += "✨\n"
     await update.message.reply_text(text[:4000], parse_mode='Markdown')
+
 async def delete_cmd(update, ctx):
     uid = update.effective_user.id
     if uid in users: del users[uid]; save_users()
     await update.message.reply_text("✅ *Данные удалены!*", parse_mode='Markdown')
+
 async def support_cmd(update, ctx):
     await update.message.reply_text("💬 *Поддержка*\nПишите вопрос здесь.", parse_mode='Markdown')
 
-# ===== СТАРТ =====
 async def start(update, ctx):
     if ctx.args and ctx.args[0] == 'support':
         await update.message.reply_text("💬 *Поддержка*\nПишите вопрос здесь.", parse_mode='Markdown')
@@ -566,7 +606,6 @@ async def logtest(update, ctx):
         except: await update.message.reply_text("❌ Нет связи")
     else: await update.message.reply_text("❌ Токен не найден")
 
-# ===== ОСНОВНАЯ ЛОГИКА =====
 async def btn(update, ctx):
     q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
     
@@ -614,16 +653,13 @@ async def btn(update, ctx):
         transit_aspects = calc_transit_aspects(natal, transits)
         aspects = get_aspects(natal)
         
-        # ===== КОМПАКТНЫЕ АСТРОДАННЫЕ =====
         planet_data = []
         for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн']:
             if p in natal:
                 house = get_house(natal[p]['lon'], natal['houses'])
                 retro = '℞' if natal[p].get('retro') else ''
-                ruler = SIGN_RULERS.get(natal[p]['sign'], '')
                 planet_data.append(f"{p}:{natal[p]['sign']}{natal[p]['degree']}°({house}д){retro}")
         
-        # Управитель ASC
         asc_sign = natal['Асцендент']['sign']
         asc_ruler = SIGN_RULERS.get(asc_sign, '')
         asc_ruler_house = get_house(natal[asc_ruler]['lon'], natal['houses']) if asc_ruler in natal else '?'
@@ -642,7 +678,6 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
 """
         
         if d == 'f_day':
-            # Луна по часам (компактно)
             moon_data = []
             for h in [0, 6, 12, 18]:
                 jd_h = swe.julday(now.year, now.month, now.day, h)
