@@ -790,13 +790,6 @@ async def start(update, ctx):
     
     ctx.user_data['mode'] = ''
     
-    uid = update.effective_user.id
-    if uid not in users:
-        users[uid] = {}
-    users[uid]['consent'] = True
-    users[uid]['consent_date'] = datetime.now().strftime('%d.%m.%Y %H:%M')
-    save_users()
-    
     welcome_text = f"""
 {cat_emoji()} *АстроБот — ваш персональный астролог*
 
@@ -812,11 +805,12 @@ async def start(update, ctx):
 🌍 150+ городов мира | 🎯 Швейцарские эфемериды | 🤖 DeepSeek AI
 
 ─────────────────────
-📄 *Нажимая кнопку СТАРТ, вы подтверждаете согласие с:*
-• Политикой конфиденциальности
-• Договором-офертой
-• Согласием на обработку данных
+📄 *Перед использованием бота ознакомьтесь:*
+• Политика конфиденциальности
+• Договор-оферта
+• Согласие на обработку данных
 
+Нажимая кнопку «Принимаю», вы подтверждаете согласие.
 Если вы не согласны — просто покиньте бота.
 ─────────────────────
 """
@@ -824,7 +818,8 @@ async def start(update, ctx):
     await update.message.reply_text(
         welcome_text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚀 СТАРТ", callback_data="start_accept")]
+            [InlineKeyboardButton("✅ Принимаю", callback_data="start_accept")],
+            [InlineKeyboardButton("❌ Отказываюсь", callback_data="start_decline")]
         ]),
         parse_mode='Markdown'
     )
@@ -888,9 +883,16 @@ async def btn(update, ctx):
     q = update.callback_query; await q.answer(); d = q.data; uid = q.from_user.id
     
     if d == 'start_accept':
+        # Записываем согласие ТОЛЬКО после нажатия кнопки
+        if uid not in users:
+            users[uid] = {}
+        users[uid]['consent'] = True
+        users[uid]['consent_date'] = datetime.now().strftime('%d.%m.%Y %H:%M')
+        save_users()
+        
         await q.edit_message_reply_markup(reply_markup=None)
         await q.message.reply_text(
-            f"{cat_emoji()} *Добро пожаловать!*\n\n"
+            f"{cat_emoji()} *Спасибо! Согласие принято.*\n\n"
             "Для начала работы введите данные своего рождения:\n"
             "`ДД.ММ.ГГГГ` или `ДД.ММ.ГГГГ 14:30 Москва`\n\n"
             "Или выберите действие в меню:",
@@ -899,11 +901,27 @@ async def btn(update, ctx):
         )
         return
     
+    if d == 'start_decline':
+        await q.edit_message_reply_markup(reply_markup=None)
+        await q.message.reply_text(
+            "❌ *Вы отказались от обработки данных.*\n\n"
+            "Бот не будет сохранять вашу информацию. "
+            "Вы можете покинуть бота или вернуться позже командой /start",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Проверка согласия для всех функций, требующих обработки данных
+    if d in ['forecast', 'natal', 'houses', 'newdata', 'newdata_noon', 'newdata_natal', 'delete_yes']:
+        if uid not in users or not users[uid].get('consent'):
+            await q.answer("⚠️ Сначала примите согласие в /start", show_alert=True)
+            return
+    
     if d.startswith('f_'):
         print(f"📅 Прогноз запрошен: {get_current_time().strftime('%d.%m.%Y %H:%M:%S')} UTC")
     
     if d == 'forecast':
-        if uid in users:
+        if uid in users and 'sign' in users[uid]:
             ctx.user_data['mode'] = 'fp'
             kb = [[InlineKeyboardButton("📅 День", callback_data="f_day"), InlineKeyboardButton("📆 Неделя", callback_data="f_week")],
                   [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
@@ -921,7 +939,7 @@ async def btn(update, ctx):
                 parse_mode='Markdown'
             )
     elif d.startswith('f_'):
-        if uid not in users: await q.message.reply_text("Сначала введите данные своего рождения!"); return
+        if uid not in users or 'sign' not in users[uid]: await q.message.reply_text("Сначала введите данные своего рождения!"); return
         u = users[uid]; period = {'day':'день','week':'неделю','month':'месяц'}[d[2:]]
         now = get_current_time()
         
@@ -1118,7 +1136,7 @@ async def btn(update, ctx):
             await update.effective_message.reply_text(fallback, reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'natal':
-        if uid not in users: 
+        if uid not in users or 'sign' not in users[uid]: 
             await q.edit_message_text(
                 "🌟 *Натальная карта*\n\nВыберите формат ввода:\n\n📝 `15.05.1990 14:30 Москва`\n📝 `15.05.1990 Москва`",
                 reply_markup=InlineKeyboardMarkup([
@@ -1182,7 +1200,7 @@ ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
             await update.effective_message.reply_text(f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n\n☀ Солнце: *{sun_sign}*\n🌙 Луна: *{moon_sign}*\n⬆ ASC: *{asc_sign}*\n\n⚠️ Интерпретация временно недоступна.", reply_markup=overview_btn(), parse_mode='Markdown')
     
     elif d == 'houses':
-        if uid not in users: await q.edit_message_text("🏠 *Дома гороскопа*\n\nНужно точное время рождения.\n📝 `15.05.1990 14:30 Москва`", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 Ввести данные", callback_data="newdata")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]), parse_mode='Markdown')
+        if uid not in users or 'sign' not in users[uid]: await q.edit_message_text("🏠 *Дома гороскопа*\n\nНужно точное время рождения.\n📝 `15.05.1990 14:30 Москва`", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("📝 Ввести данные", callback_data="newdata")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]), parse_mode='Markdown')
         else:
             u = users[uid]; natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
             text = f"🏠 *Дома гороскопа*\n📍 {u['city'].title()}\n🕐 {u['hour']:02d}:{u['minute']:02d}\n\n"
@@ -1297,7 +1315,7 @@ async def msg(update, ctx):
         
         validate_date(day, month, year); validate_time(hour, minute)
         lat, lon, city_name = parse_city(city_str); sign = get_zodiac_sign(day, month)
-        users[uid] = {'sign':sign,'day':day,'month':month,'year':year,'hour':hour,'minute':minute,'lat':lat,'lon':lon,'city':city_name}
+        users[uid] = {'sign':sign,'day':day,'month':month,'year':year,'hour':hour,'minute':minute,'lat':lat,'lon':lon,'city':city_name,'consent': True,'consent_date': datetime.now().strftime('%d.%m.%Y %H:%M')}
         save_users()
         
         kb = [[InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast")],
