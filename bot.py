@@ -400,7 +400,8 @@ def get_aspects_with_angles(natal):
             elif abs(diff-180) <= 6: asp = 'оппозиция'
             else: continue
             aspects.append((names[i], names[j], asp, round(diff, 1)))
-    return aspectsdef calc_transit_aspects(natal, transits):
+    return aspects
+    def calc_transit_aspects(natal, transits):
     aspects = []
     for t_name, t_data in transits.items():
         if t_name in ['Раху', 'Кету']: continue
