@@ -670,7 +670,7 @@ async def btn(update, ctx):
         users[uid]['consent_date'] = datetime.now().strftime('%d.%m.%Y %H:%M')
         save_users()
         await q.message.delete()
-        await q.message.reply_text(f"{cat_emoji()} *Добро пожаловать!*      Ответы на важные вопросы уже ждут Вас: Выберите нужный раздел в меню ниже", reply_markup=menu_btn(), parse_mode='Markdown')
+        await q.message.reply_text(f"{cat_emoji()} *Добро пожаловать!*                    Ответы уже ждут Вас: Выберите нужный раздел в меню ниже", reply_markup=menu_btn(), parse_mode='Markdown')
         return
     
     if d == 'start_decline':
