@@ -612,9 +612,6 @@ def menu_btn():
         [InlineKeyboardButton("🗑 Удалить данные", callback_data="delete_confirm")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
         [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
-        [InlineKeyboardButton("📄 Политика конфиденциальности", url=PRIVACY_URL)],
-        [InlineKeyboardButton("📋 Договор-оферта", url=OFERTA_URL)],
-        [InlineKeyboardButton("✅ Согласие на обработку данных", url=CONSENT_URL)],
     ])
 
 def overview_btn():
@@ -624,9 +621,6 @@ def overview_btn():
         [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
         [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
         [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
-        [InlineKeyboardButton("📄 Политика конфиденциальности", url=PRIVACY_URL)],
-        [InlineKeyboardButton("📋 Договор-оферта", url=OFERTA_URL)],
-        [InlineKeyboardButton("✅ Согласие на обработку данных", url=CONSENT_URL)],
     ])
 
 # ===== ГРАФИЧЕСКАЯ КАРТА =====
@@ -819,7 +813,7 @@ async def start(update, ctx):
 📄 *Перед использованием бота ознакомьтесь:*
 • [Политика конфиденциальности]({PRIVACY_URL})
 • [Договор-оферта]({OFERTA_URL})
-• [Согласие на обработку данных]({CONSENT_URL})
+• ✅ [Согласие на обработку данных]({CONSENT_URL}) — *отметьте галочкой*
 
 Нажимая кнопку «Принимаю», вы подтверждаете согласие.
 Если вы не согласны — просто покиньте бота.
@@ -923,7 +917,7 @@ async def btn(update, ctx):
         return
     
     # Проверка согласия для всех функций, требующих обработки данных
-    if d in ['forecast', 'natal', 'houses', 'newdata', 'newdata_noon', 'newdata_natal', 'delete_yes']:
+    if d in ['forecast', 'natal', 'houses', 'newdata', 'newdata_noon', 'newdata_natal']:
         if uid not in users or not users[uid].get('consent'):
             await q.answer("⚠️ Сначала примите согласие в /start", show_alert=True)
             return
@@ -1255,12 +1249,21 @@ ASC в {asc_sign} | ☀ Солнце в {sun_sign} ({sun_house} дом)
     
     elif d == 'delete_confirm':
         kb = [[InlineKeyboardButton("✅ Да, удалить всё", callback_data="delete_yes")], [InlineKeyboardButton("❌ Нет, отмена", callback_data="back")]]
-        await q.edit_message_text("⚠️ *Удалить ВСЕ данные?*\n\nЭто действие нельзя отменить.", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
+        await q.edit_message_text("⚠️ *Удалить ВСЕ данные?*\n\nЭто действие нельзя отменить. Согласие будет отозвано.", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
     
     elif d == 'delete_yes':
-        if uid in users: del users[uid]; save_users()
-        ctx.user_data.clear(); ctx.user_data['mode'] = ''
-        await q.edit_message_text("✅ *Все данные удалены!*\n\nВведите данные своего рождения:\n`ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=menu_btn(), parse_mode='Markdown')
+        if uid in users:
+            del users[uid]
+            save_users()
+        ctx.user_data.clear()
+        ctx.user_data['mode'] = ''
+        await q.edit_message_text(
+            "✅ *Все данные удалены! Согласие отозвано.*\n\n"
+            "Введите данные своего рождения:\n"
+            "`ДД.ММ.ГГГГ ЧЧ:ММ Город`",
+            reply_markup=menu_btn(),
+            parse_mode='Markdown'
+        )
     
     elif d == 'subscribe_info':
         await q.edit_message_text("💎 *Подписка*\n\nСкоро здесь будет информация о платных возможностях.\n\nА пока — все функции бота бесплатны!", reply_markup=overview_btn(), parse_mode='Markdown')
