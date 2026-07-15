@@ -1,0 +1,13 @@
+# Токены и секреты
+.env
+*.token
+*.secret
+credentials.json
+
+# Данные пользователей
+data/
+
+# Кеш Python
+__pycache__/
+*.pyc
+*.pyo
