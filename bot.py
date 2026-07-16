@@ -49,7 +49,17 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT_FORECAST = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
+SYSTEM_PROMPT_FORECAST = """Ты — профессиональный астролог. Сделай анализ транзитов.
+
+ПРАВИЛА:
+1. Найди ГЛАВНУЮ тему периода — какая планета активнее всего влияет
+2. Определи, какие ДОМА соединяются через транзитные планеты
+3. Оцени СИЛУ планет (обитель, изгнание, экзальтация, падение)
+4. Собери аспекты в ЕДИНУЮ картину, не перечисляй их списком
+5. Учитывай ретроградность планет (℞)
+6. Дай прогноз по сферам: любовь, карьера, энергия, совет
+7. Начинай сразу с анализа, без приветствий и дат
+8. Нейтральные обращения"""
 
 SYSTEM_PROMPT_NATAL = "Ты — астролог с 20-летним опытом. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Делай развёрнутый разбор натальной карты. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты, аспекты и дома."
 
@@ -172,6 +182,20 @@ SIGN_RULERS = {
     'Рак': 'Луна', 'Лев': 'Солнце', 'Дева': 'Меркурий',
     'Весы': 'Венера', 'Скорпион': 'Марс', 'Стрелец': 'Юпитер',
     'Козерог': 'Сатурн', 'Водолей': 'Уран', 'Рыбы': 'Нептун'
+}
+
+# Достоинства планет (обитель, экзальтация, изгнание, падение)
+PLANET_DIGNITY = {
+    'Солнце': {'обитель': 'Лев', 'экзальтация': 'Овен', 'изгнание': 'Водолей', 'падение': 'Весы'},
+    'Луна': {'обитель': 'Рак', 'экзальтация': 'Телец', 'изгнание': 'Козерог', 'падение': 'Скорпион'},
+    'Меркурий': {'обитель': ['Близнецы', 'Дева'], 'экзальтация': 'Дева', 'изгнание': ['Стрелец', 'Рыбы'], 'падение': 'Рыбы'},
+    'Венера': {'обитель': ['Телец', 'Весы'], 'экзальтация': 'Рыбы', 'изгнание': ['Скорпион', 'Овен'], 'падение': 'Дева'},
+    'Марс': {'обитель': ['Овен', 'Скорпион'], 'экзальтация': 'Козерог', 'изгнание': ['Телец', 'Весы'], 'падение': 'Рак'},
+    'Юпитер': {'обитель': ['Стрелец', 'Рыбы'], 'экзальтация': 'Рак', 'изгнание': ['Близнецы', 'Дева'], 'падение': 'Козерог'},
+    'Сатурн': {'обитель': ['Козерог', 'Водолей'], 'экзальтация': 'Весы', 'изгнание': ['Рак', 'Лев'], 'падение': 'Овен'},
+    'Уран': {'обитель': 'Водолей', 'экзальтация': 'Скорпион', 'изгнание': 'Лев', 'падение': 'Телец'},
+    'Нептун': {'обитель': 'Рыбы', 'экзальтация': 'Рак', 'изгнание': 'Дева', 'падение': 'Козерог'},
+    'Плутон': {'обитель': 'Скорпион', 'экзальтация': 'Лев', 'изгнание': 'Телец', 'падение': 'Водолей'},
 }
 
 CITIES = {
@@ -302,6 +326,21 @@ def get_timezone(city_name, lat=None, lon=None):
     if lon is not None: return round(lon / 15.0)
     return 3
 
+def get_planet_dignity(planet, sign):
+    """Возвращает достоинство планеты в знаке"""
+    if planet not in PLANET_DIGNITY: return ""
+    d = PLANET_DIGNITY[planet]
+    
+    def check(val):
+        if isinstance(val, list): return sign in val
+        return sign == val
+    
+    if check(d['обитель']): return "в обители (очень сильна)"
+    if check(d.get('экзальтация', '')): return "в экзальтации (сильна)"
+    if check(d.get('изгнание', '')): return "в изгнании (ослаблена)"
+    if check(d.get('падение', '')): return "в падении (слаба)"
+    return ""
+
 def calc_natal(day, month, year, hour=12, minute=0, lat=55.75, lon=37.62, city_name='москва'):
     utc_offset = get_timezone(city_name, lat, lon)
     utc_hour = hour - utc_offset
@@ -358,6 +397,18 @@ def calc_transits():
         transits['Кету'] = {'sign': sign_from_lon((rahu_lon + 180) % 360), 'degree': degree_in_sign((rahu_lon + 180) % 360), 'lon': (rahu_lon + 180) % 360}
     except: pass
     return transits
+
+def calc_house_transits(transits, houses):
+    """Транзиты планет к куспидам домов"""
+    house_aspects = []
+    for t_name, t_data in transits.items():
+        if t_name in ['Раху', 'Кету']: continue
+        for house in houses:
+            diff = abs(t_data['lon'] - house['lon']) % 360
+            if diff > 180: diff = 360 - diff
+            if diff <= 2:
+                house_aspects.append(f"{t_name} на куспиде {house['house_num']} дома ({house['sign']})")
+    return house_aspects
 
 def get_aspects(planets):
     aspects_list = []
@@ -689,30 +740,56 @@ async def btn(update, ctx):
         natal = calc_natal(u['day'], u['month'], u['year'], u['hour'], u['minute'], u['lat'], u['lon'], u['city'])
         transits = calc_transits()
         transit_aspects = calc_transit_aspects(natal, transits)
+        house_transits = calc_house_transits(transits, natal['houses'])
         aspects = get_aspects(natal)
         
-        planet_data = []
-        for p in ['Солнце','Луна','Меркурий','Венера','Марс','Юпитер','Сатурн']:
-            if p in natal:
-                house = get_house(natal[p]['lon'], natal['houses'])
-                retro = '℞' if natal[p].get('retro') else ''
-                planet_data.append(f"{p}:{natal[p]['sign']}{natal[p]['degree']}°({house}д){retro}")
+        # Данные о достоинствах транзитных планет
+        dignity_info = []
+        for t_name, t_data in transits.items():
+            if t_name in ['Раху', 'Кету']: continue
+            dignity = get_planet_dignity(t_name, t_data['sign'])
+            if dignity:
+                dignity_info.append(f"{t_name} {dignity}")
         
-        asc_sign = natal['Асцендент']['sign']
-        asc_ruler = SIGN_RULERS.get(asc_sign, '')
-        asc_ruler_house = get_house(natal[asc_ruler]['lon'], natal['houses']) if asc_ruler in natal else '?'
+        # Транзиты с домами и управителями
+        transit_details = []
+        for t_name, t_data in transits.items():
+            if t_name in ['Раху', 'Кету']: continue
+            t_house = get_house(t_data['lon'], natal['houses'])
+            retro = '℞ ' if t_data.get('retro') else ''
+            # Какой натальный дом управляется этой планетой
+            natal_sign_ruled = [s for s, r in SIGN_RULERS.items() if r == t_name]
+            ruled_houses = []
+            for h in natal['houses']:
+                if h['sign'] in natal_sign_ruled:
+                    ruled_houses.append(str(h['house_num']))
+            ruled_str = f" (упр. {','.join(ruled_houses)}д)" if ruled_houses else ""
+            transit_details.append(f"{retro}{t_name} в {t_data['sign']} → {t_house} дом{ruled_str}")
         
-        transit_strs = []
-        for a in transit_aspects[:8]:
-            t_retro = '℞' if transits.get(a['transit_planet'], {}).get('retro') else ''
-            transit_strs.append(f"{a['transit_planet']}{t_retro} {a['aspect'][:3]} {a['natal_planet']} ({a['direction']})")
+        # Аспекты с домами
+        house_connections = []
+        for a in transit_aspects:
+            natal_house = get_house(natal[a['natal_planet']]['lon'], natal['houses'])
+            transit_house = a.get('transit_house', '?')
+            if natal_house and transit_house:
+                house_connections.append(f"{a['transit_planet']} соединяет {transit_house}д (транзит) и {natal_house}д (натал) через {a['aspect']} с {a['natal_planet']}")
         
         astro = f"""
-ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['sign']}
-Планеты: {' | '.join(planet_data[:7])}
-Упр.ASC: {asc_ruler}({asc_ruler_house}д)
-Транзиты: {', '.join(transit_strs[:6]) if transit_strs else 'нет'}
-Аспекты: {', '.join(aspects[:4]) if aspects else 'нет'}
+📍 {u['city'].title()} | {now.strftime('%d.%m.%Y')}
+
+*Транзитные планеты (положение, дома, управление):*
+{chr(10).join(transit_details[:10])}
+
+*Достоинства планет (сила/слабость):*
+{chr(10).join(dignity_info) if dignity_info else 'Нейтральное положение'}
+
+*Транзитные аспекты к натальным планетам:*
+{chr(10).join(house_connections[:8]) if house_connections else 'Нет точных аспектов'}
+
+*Транзиты к куспидам домов:*
+{chr(10).join(house_transits[:5]) if house_transits else 'Нет точных соединений с куспидами'}
+
+*Натальные аспекты:* {', '.join(aspects[:4]) if aspects else 'нет значимых'}
 """
         
         if d == 'f_day':
@@ -724,25 +801,25 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
                 m_house = get_house(m_lon, natal['houses'])
                 moon_data.append(f"{h:02d}:{m_sign}({m_house}д)")
             
-            prompt = f"""Прогноз на день. Начинай сразу с прогноза.
+            prompt = f"""Анализ транзитов на день.
 {astro}
 Луна: {' → '.join(moon_data)}
 
-Дай 6-8 предл.: настроение, отношения, дела, совет. Упоминай планеты."""
-            max_tok = 350
+Найди ГЛАВНУЮ тему дня. Оцени силу планет. Дай прогноз 8-10 предл.: настроение, отношения, дела, совет."""
+            max_tok = 500
         
         elif d == 'f_month':
-            prompt = f"""Прогноз на месяц. Начинай сразу с прогноза.
+            prompt = f"""Анализ транзитов на месяц.
 {astro}
 
-Дай 10-12 предл.: любовь, карьера, энергия, совет. Упоминай транзитные аспекты."""
-            max_tok = 1200
+Найди ГЛАВНУЮ тему месяца. Оцени силу планет. Дай прогноз 12-15 предл.: любовь, карьера, энергия, совет. Упоминай конкретные дома и аспекты."""
+            max_tok = 1500
         else:
-            prompt = f"""Прогноз на {period}. Начинай сразу с прогноза.
+            prompt = f"""Анализ транзитов на {period}.
 {astro}
 
-Дай 6-8 предл.: любовь, карьера, энергия, совет. Упоминай аспекты."""
-            max_tok = 500 if d == 'f_week' else 400
+Найди ГЛАВНУЮ тему. Оцени силу планет. Дай прогноз 8-10 предл.: любовь, карьера, энергия, совет. Упоминай дома и аспекты."""
+            max_tok = 700 if d == 'f_week' else 500
         
         forecast = ai_client.ask(prompt, max_tokens=max_tok, system_prompt=SYSTEM_PROMPT_FORECAST)
         
@@ -776,7 +853,8 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
             if p in natal:
                 h = get_house(natal[p]['lon'], natal['houses'])
                 retro = '℞' if natal[p].get('retro') else ''
-                planet_info.append(f"{p}: {natal[p]['sign']} {natal[p]['degree']}° в {h} доме{retro}")
+                dignity = get_planet_dignity(p, natal[p]['sign'])
+                planet_info.append(f"{p}: {natal[p]['sign']} {natal[p]['degree']}° в {h} доме{retro} {dignity}")
         
         asc_sign = natal['Асцендент']['sign']
         asc_ruler = SIGN_RULERS.get(asc_sign, '')
