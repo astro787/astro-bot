@@ -49,7 +49,11 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
+SYSTEM_PROMPT_FORECAST = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Начинай сразу с прогноза, без приветствий и дат. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты и аспекты."
+
+SYSTEM_PROMPT_NATAL = "Ты — астролог с 20-летним опытом. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Делай развёрнутый разбор натальной карты. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты, аспекты и дома."
+
+SYSTEM_PROMPT_COMPAT = "Ты — астролог. Нейтральные обращения. Отвечай всегда. Дай краткую совместимость. Упоминай конкретные знаки."
 
 def validate_date(day, month, year):
     if year < 1900 or year > datetime.now().year: raise ValueError(f"Год: 1900-{datetime.now().year}")
@@ -70,16 +74,18 @@ class AIClient:
         self.hf_url = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
         self.max_retries = 2; self.timeout = 40
 
-    def ask(self, prompt, max_tokens=300):
+    def ask(self, prompt, max_tokens=300, system_prompt=None):
+        if system_prompt is None:
+            system_prompt = SYSTEM_PROMPT_FORECAST
         if self.deepseek_token:
-            result = self._ask_deepseek(prompt, max_tokens)
+            result = self._ask_deepseek(prompt, max_tokens, system_prompt)
             if result: return result
-        if self.hf_token: return self._ask_huggingface(prompt, max_tokens)
+        if self.hf_token: return self._ask_huggingface(prompt, max_tokens, system_prompt)
         return None
 
-    def _ask_deepseek(self, prompt, max_tokens):
+    def _ask_deepseek(self, prompt, max_tokens, system_prompt):
         headers = {"Authorization": f"Bearer {self.deepseek_token}", "Content-Type": "application/json"}
-        payload = {"model": "deepseek-chat", "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}], "max_tokens": max_tokens, "temperature": 0.5}
+        payload = {"model": "deepseek-chat", "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}], "max_tokens": max_tokens, "temperature": 0.5}
         for _ in range(self.max_retries):
             try:
                 resp = requests.post(self.deepseek_url, headers=headers, json=payload, timeout=self.timeout)
@@ -91,11 +97,12 @@ class AIClient:
             except: time.sleep(3)
         return None
 
-    def _ask_huggingface(self, prompt, max_tokens):
+    def _ask_huggingface(self, prompt, max_tokens, system_prompt):
         headers = {"Authorization": f"Bearer {self.hf_token}"}
+        full_prompt = f"{system_prompt}\n\n{prompt}"
         for _ in range(self.max_retries):
             try:
-                resp = requests.post(self.hf_url, headers=headers, json={"inputs": prompt, "parameters": {"max_new_tokens": max_tokens}}, timeout=self.timeout)
+                resp = requests.post(self.hf_url, headers=headers, json={"inputs": full_prompt, "parameters": {"max_new_tokens": max_tokens}}, timeout=self.timeout)
                 if resp.status_code == 200:
                     data = resp.json()
                     if isinstance(data, list) and data:
@@ -737,7 +744,7 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
 Дай 6-8 предл.: любовь, карьера, энергия, совет. Упоминай аспекты."""
             max_tok = 500 if d == 'f_week' else 400
         
-        forecast = ai_client.ask(prompt, max_tokens=max_tok)
+        forecast = ai_client.ask(prompt, max_tokens=max_tok, system_prompt=SYSTEM_PROMPT_FORECAST)
         
         try: await wait_msg.delete()
         except: pass
@@ -824,9 +831,9 @@ ASC:{asc_sign} | ☀:{natal['Солнце']['sign']} | 🌙:{natal['Луна']['
 
 ☊ КАРМИЧЕСКИЕ УЗЛЫ: Положение в знаке и доме. Предназначение, в какую сторону двигаться. Какие качества наработать по северному узлу.
 
-Ищи информацию по западной астрологии, синтезируй и выдай структурно. 20-40 предложений."""
+Ищи информацию по западной астрологии, синтезируй и выдай структурно. 30-50 предложений."""
         
-        forecast = ai_client.ask(prompt, max_tokens=2500)
+        forecast = ai_client.ask(prompt, max_tokens=2500, system_prompt=SYSTEM_PROMPT_NATAL)
         img = draw_natal_chart_pro(natal, u['city'], f"{u['hour']:02d}:{u['minute']:02d}")
         
         try: await wait_msg.delete()
@@ -930,7 +937,7 @@ async def msg(update, ctx):
         parts = t.title().split()
         if len(parts)==2 and parts[0] in SIGN_NAMES and parts[1] in SIGN_NAMES:
             wait_msg = await update.message.reply_text(f"{random.choice(WAITING_EMOJI)} Рассчитываю совместимость...")
-            fc = ai_client.ask(f"Совместимость {parts[0]} {parts[1]}. Процент и 3-4 предложения с рекомендациями.", 200)
+            fc = ai_client.ask(f"Совместимость {parts[0]} {parts[1]}. Процент и 3-4 предложения с рекомендациями.", 200, system_prompt=SYSTEM_PROMPT_COMPAT)
             try: await wait_msg.delete()
             except: pass
             ctx.user_data['mode'] = ''
