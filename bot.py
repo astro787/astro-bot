@@ -3,6 +3,7 @@ import sys
 import os as _os
 import socket
 import random
+import gc
 
 print("⏳ Ожидание 8с перед стартом для избежания conflict...")
 time.sleep(8)
@@ -35,10 +36,16 @@ import threading
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+plt.rcParams['figure.max_open_warning'] = 0
 import numpy as np
 from io import BytesIO
 import atexit
 import json
+
+def cleanup():
+    gc.collect()
+
+atexit.register(cleanup)
 
 CAT_EMOJI = ['🐱', '😺', '😸', '😻', '😼', '😽', '🙀', '😿', '😾', '🐈', '🐈‍⬛', '✨🐱', '🐱✨', '🔮🐱', '🐱🔮', '🌟🐱', '🐱🌟']
 def cat_emoji(): return random.choice(CAT_EMOJI)
@@ -184,7 +191,6 @@ SIGN_RULERS = {
     'Козерог': 'Сатурн', 'Водолей': 'Уран', 'Рыбы': 'Нептун'
 }
 
-# Достоинства планет (обитель, экзальтация, изгнание, падение)
 PLANET_DIGNITY = {
     'Солнце': {'обитель': 'Лев', 'экзальтация': 'Овен', 'изгнание': 'Водолей', 'падение': 'Весы'},
     'Луна': {'обитель': 'Рак', 'экзальтация': 'Телец', 'изгнание': 'Козерог', 'падение': 'Скорпион'},
@@ -327,14 +333,11 @@ def get_timezone(city_name, lat=None, lon=None):
     return 3
 
 def get_planet_dignity(planet, sign):
-    """Возвращает достоинство планеты в знаке"""
     if planet not in PLANET_DIGNITY: return ""
     d = PLANET_DIGNITY[planet]
-    
     def check(val):
         if isinstance(val, list): return sign in val
         return sign == val
-    
     if check(d['обитель']): return "в обители (очень сильна)"
     if check(d.get('экзальтация', '')): return "в экзальтации (сильна)"
     if check(d.get('изгнание', '')): return "в изгнании (ослаблена)"
@@ -399,7 +402,6 @@ def calc_transits():
     return transits
 
 def calc_house_transits(transits, houses):
-    """Транзиты планет к куспидам домов"""
     house_aspects = []
     for t_name, t_data in transits.items():
         if t_name in ['Раху', 'Кету']: continue
@@ -743,7 +745,6 @@ async def btn(update, ctx):
         house_transits = calc_house_transits(transits, natal['houses'])
         aspects = get_aspects(natal)
         
-        # Данные о достоинствах транзитных планет
         dignity_info = []
         for t_name, t_data in transits.items():
             if t_name in ['Раху', 'Кету']: continue
@@ -751,13 +752,11 @@ async def btn(update, ctx):
             if dignity:
                 dignity_info.append(f"{t_name} {dignity}")
         
-        # Транзиты с домами и управителями
         transit_details = []
         for t_name, t_data in transits.items():
             if t_name in ['Раху', 'Кету']: continue
             t_house = get_house(t_data['lon'], natal['houses'])
             retro = '℞ ' if t_data.get('retro') else ''
-            # Какой натальный дом управляется этой планетой
             natal_sign_ruled = [s for s, r in SIGN_RULERS.items() if r == t_name]
             ruled_houses = []
             for h in natal['houses']:
@@ -766,7 +765,6 @@ async def btn(update, ctx):
             ruled_str = f" (упр. {','.join(ruled_houses)}д)" if ruled_houses else ""
             transit_details.append(f"{retro}{t_name} в {t_data['sign']} → {t_house} дом{ruled_str}")
         
-        # Аспекты с домами
         house_connections = []
         for a in transit_aspects:
             natal_house = get_house(natal[a['natal_planet']]['lon'], natal['houses'])
@@ -1072,7 +1070,15 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg))
     threading.Thread(target=run_keepalive, daemon=True).start()
     print("🚀 Бот запущен!")
-    app.run_polling(drop_pending_updates=True)
+    
+    # Автоперезапуск при падении
+    while True:
+        try:
+            app.run_polling(drop_pending_updates=True)
+        except Exception as e:
+            print(f"❌ Бот упал: {e}")
+            gc.collect()
+            time.sleep(5)
 
 if __name__ == '__main__':
     main()
