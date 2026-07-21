@@ -56,17 +56,17 @@ PRIVACY_URL = "https://telegra.ph/Politika-konfidencialnosti-07-03-19"
 OFERTA_URL = "https://telegra.ph/DOGOVOR-OFERTA-NA-OKAZANIE-USLUG-07-03"
 CONSENT_URL = "https://telegra.ph/SOGLASIE-NA-OBRABOTKU-PERSONALNYH-DANNYH-07-03-6"
 
-SYSTEM_PROMPT_FORECAST = """Ты — профессиональный астролог. Сделай анализ транзитов.
+SYSTEM_PROMPT_FORECAST = """Ты — профессиональный астролог. Делай прогноз на основе переданного СИНТЕЗА транзитов.
 
 ПРАВИЛА:
-1. Найди ГЛАВНУЮ тему периода — какая планета активнее всего влияет
-2. Определи, какие ДОМА соединяются через транзитные планеты
-3. Оцени СИЛУ планет (обитель, изгнание, экзальтация, падение)
-4. Собери аспекты в ЕДИНУЮ картину, не перечисляй их списком
-5. Учитывай ретроградность планет (℞)
-6. Дай прогноз по сферам: любовь, карьера, энергия, совет
-7. Начинай сразу с анализа, без приветствий и дат
-8. Нейтральные обращения"""
+1. В синтезе уже определена ГЛАВНАЯ планета периода — начни с неё
+2. Опиши КАКИЕ ДОМА соединяются и что это значит для человека
+3. Оцени СИЛУ влияния — если планета в обители, она действует мощно и гармонично; в изгнании — через напряжение
+4. Упомяни КОНКРЕТНЫЕ сферы жизни, которые затронуты (по номерам домов)
+5. Не перечисляй аспекты списком — собери их в единую картину
+6. Учитывай ретроградность — это возврат к прошлым темам
+7. Дай прогноз по сферам: ❤️ любовь, 💼 карьера, ⚡ энергия, 🌟 совет
+8. 8-12 предложений. Конкретно, без общих фраз."""
 
 SYSTEM_PROMPT_NATAL = "Ты — астролог с 20-летним опытом. Нейтральные обращения. Отвечай всегда. Основывайся только на данных. Делай развёрнутый разбор натальной карты. Завершай каждое предложение. Не обрывай мысли. Упоминай планеты, аспекты и дома."
 
@@ -577,7 +577,273 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     fig.text(0.5, 0.97, title, ha='center', va='top', fontsize=16, color='#1a1a1a', weight='bold')
     plt.tight_layout(pad=1)
     buf = BytesIO()
-    # ИЗМЕНЕНИЕ: DPI снижен с 200 до 120
+    plt.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor='white', edgecolor='none')
+    buf.seek(0); plt.close()
+    return buf
+# ========== НОВОЕ: СИНТЕЗ ТРАНЗИТОВ ==========
+def build_transit_synthesis(natal, transits, transit_aspects, house_transits):
+    """Собирает единую картину транзитов с оценкой силы влияний"""
+    
+    # Оценка силы каждого транзитного аспекта
+    aspect_power = {}
+    for asp in transit_aspects:
+        t_name = asp['transit_planet']
+        n_name = asp['natal_planet']
+        asp_type = asp['aspect']
+        
+        # Базовая сила аспекта
+        power = {'соединение': 10, 'оппозиция': 8, 'квадрат': 7, 'тригон': 6, 'секстиль': 4}[asp_type]
+        
+        # Усиление если планета в обители/экзальтации
+        dignity = get_planet_dignity(t_name, transits[t_name]['sign'])
+        if 'обители' in dignity: power *= 1.5
+        elif 'экзальтации' in dignity: power *= 1.3
+        elif 'изгнании' in dignity or 'падении' in dignity: power *= 0.7
+        
+        # Усиление если аспект к личной планете
+        if n_name in ['Солнце','Луна','Меркурий','Венера','Марс']: power *= 1.2
+        
+        # Усиление если ретроградность
+        if transits[t_name].get('retro'): power *= 1.3
+        
+        # Усиление если точный аспект (орб < 2°)
+        if asp['angle'] < 2: power *= 1.5
+        elif asp['angle'] < 5: power *= 1.2
+        
+        key = f"{t_name}→{n_name}"
+        aspect_power[key] = {
+            'power': round(power, 1),
+            'transit_planet': t_name,
+            'natal_planet': n_name,
+            'aspect': asp_type,
+            'transit_house': asp.get('transit_house', '?'),
+            'natal_house': get_house(natal[n_name]['lon'], natal['houses']),
+            'transit_sign': transits[t_name]['sign'],
+            'dignity': dignity
+        }
+    
+    # Определяем главную планету (по сумме силы аспектов)
+    planet_total_power = {}
+    for key, data in aspect_power.items():
+        t_planet = data['transit_planet']
+        planet_total_power[t_planet] = planet_total_power.get(t_planet, 0) + data['power']
+    
+    if not planet_total_power:
+        return "Нет значимых транзитных аспектов.", None, []
+    
+    main_planet = max(planet_total_power, key=planet_total_power.get)
+    main_power = planet_total_power[main_planet]
+    
+    # Какие дома соединяет главная планета
+    main_connections = []
+    for key, data in aspect_power.items():
+        if data['transit_planet'] == main_planet:
+            main_connections.append(data)
+    
+    # Чем управляет главная планета в натале
+    natal_houses_ruled = []
+    for h in natal['houses']:
+        if SIGN_RULERS.get(h['sign']) == main_planet:
+            natal_houses_ruled.append(h['house_num'])
+    
+    # В каком доме натальная главная планета
+    natal_main_house = get_house(natal[main_planet]['lon'], natal['houses']) if main_planet in natal else '?'
+    
+    # Собираем единую картину
+    synthesis = f"""
+🎯 ГЛАВНАЯ ПЛАНЕТА ПЕРИОДА: {main_planet} (сила влияния: {main_power:.0f}/10)
+
+📍 {main_planet} в транзите: {transits[main_planet]['sign']} → {main_connections[0]['transit_house'] if main_connections else '?'} дом
+
+🏠 Управляет домами в натале: {', '.join(map(str, natal_houses_ruled)) if natal_houses_ruled else 'нет'}
+   В натальной карте стоит в {natal_main_house} доме
+
+💫 Соединяет дома (транзит → натал):
+{chr(10).join([f'   • {c["transit_house"]} дом → {c["natal_house"]} дом через {c["aspect"]} с {c["natal_planet"]} (сила {c["power"]:.0f}/10)' for c in main_connections[:5]])}
+
+⚡ СИЛА ПЛАНЕТ ПО УБЫВАНИЮ:
+{chr(10).join([f'   • {planet}: {power:.0f}/10' for planet, power in sorted(planet_total_power.items(), key=lambda x: x[1], reverse=True)[:5]])}
+"""
+    
+    return synthesis, main_planet, main_connections
+# ========== КОНЕЦ НОВОЙ ФУНКЦИИ ==========
+
+def calc_house_transits(transits, houses):
+    house_aspects = []
+    for t_name, t_data in transits.items():
+        if t_name in ['Раху', 'Кету']: continue
+        for house in houses:
+            diff = abs(t_data['lon'] - house['lon']) % 360
+            if diff > 180: diff = 360 - diff
+            if diff <= 2:
+                house_aspects.append(f"{t_name} на куспиде {house['house_num']} дома ({house['sign']})")
+    return house_aspects
+
+def get_aspects(planets):
+    aspects_list = []
+    names = [n for n in planets if n not in ['Асцендент','MC','houses']]
+    for i in range(len(names)):
+        for j in range(i+1, len(names)):
+            diff = abs(planets[names[i]]['lon'] - planets[names[j]]['lon']) % 360
+            if diff > 180: diff = 360 - diff
+            if diff <= 5: asp = "соединение"
+            elif abs(diff-60) <= 5: asp = "секстиль"
+            elif abs(diff-90) <= 6: asp = "квадрат"
+            elif abs(diff-120) <= 6: asp = "тригон"
+            elif abs(diff-180) <= 6: asp = "оппозиция"
+            else: continue
+            aspects_list.append(f"{names[i]} {asp} {names[j]}")
+    return aspects_list
+
+def get_aspects_with_angles(natal):
+    aspects = []
+    names = [p for p in natal if p not in ['houses', 'Асцендент', 'MC']]
+    for i in range(len(names)):
+        for j in range(i+1, len(names)):
+            diff = abs(natal[names[i]]['lon'] - natal[names[j]]['lon']) % 360
+            if diff > 180: diff = 360 - diff
+            if diff <= 5: asp = 'соединение'
+            elif abs(diff-60) <= 5: asp = 'секстиль'
+            elif abs(diff-90) <= 6: asp = 'квадрат'
+            elif abs(diff-120) <= 6: asp = 'тригон'
+            elif abs(diff-180) <= 6: asp = 'оппозиция'
+            else: continue
+            aspects.append((names[i], names[j], asp, round(diff, 1)))
+    return aspects
+
+def calc_transit_aspects(natal, transits):
+    aspects = []
+    for t_name, t_data in transits.items():
+        if t_name in ['Раху', 'Кету']: continue
+        for n_name, n_data in natal.items():
+            if n_name in ['houses', 'Асцендент', 'MC', 'Раху', 'Кету']: continue
+            diff = abs(t_data['lon'] - n_data['lon']) % 360
+            if diff > 180: diff = 360 - diff
+            for asp_name, ideal in [('соединение', 0), ('оппозиция', 180), ('тригон', 120), ('квадрат', 90), ('секстиль', 60)]:
+                orb_dict = {'соединение': 8, 'оппозиция': 8, 'тригон': 8, 'квадрат': 7, 'секстиль': 5}
+                if abs(diff - ideal) <= orb_dict[asp_name]:
+                    direction = "сход" if abs(diff - ideal) < 2 else "расход"
+                    aspects.append({'transit_planet': t_name, 'transit_sign': t_data['sign'], 'natal_planet': n_name, 'natal_sign': n_data['sign'], 'aspect': asp_name, 'angle': round(diff, 1), 'direction': direction, 'transit_house': None})
+    for asp in aspects:
+        t_lon = transits[asp['transit_planet']]['lon']
+        for i, h in enumerate(natal['houses']):
+            next_h = natal['houses'][(i+1)%12]
+            if h['lon'] <= next_h['lon']:
+                if h['lon'] <= t_lon < next_h['lon']: asp['transit_house'] = h['house_num']; break
+            else:
+                if t_lon >= h['lon'] or t_lon < next_h['lon']: asp['transit_house'] = h['house_num']; break
+    return sorted(aspects, key=lambda x: x['angle'])
+
+def get_house(planet_lon, houses):
+    for i, h in enumerate(houses):
+        next_h = houses[(i+1)%12]
+        if h['lon'] <= next_h['lon']:
+            if h['lon'] <= planet_lon < next_h['lon']: return h['house_num']
+        else:
+            if planet_lon >= h['lon'] or planet_lon < next_h['lon']: return h['house_num']
+    return 1
+
+def parse_city(city_str):
+    city_key = city_str.lower().strip()
+    if city_key in CITIES: return CITIES[city_key][0], CITIES[city_key][1], city_key
+    return 55.75, 37.62, 'москва'
+
+def back_btn(): return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Назад", callback_data="back")]])
+
+def menu_btn():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌟 Натальная карта", callback_data="natal"), InlineKeyboardButton("🏠 Дома", callback_data="houses")],
+        [InlineKeyboardButton("🔮 Прогноз ИИ", callback_data="forecast"), InlineKeyboardButton("🪐 Транзиты", callback_data="transits")],
+        [InlineKeyboardButton("💑 Совместимость", callback_data="compat"), InlineKeyboardButton("🌙 Луна", callback_data="moon")],
+        [InlineKeyboardButton("📅 Ежедневный гороскоп", callback_data="daily")],
+        [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
+        [InlineKeyboardButton("🗑 Удалить данные", callback_data="delete_confirm")],
+        [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
+        [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
+    ])
+
+def overview_btn():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 В начало", callback_data="back")],
+        [InlineKeyboardButton("🔄 Новый клиент", callback_data="new_client")],
+        [InlineKeyboardButton("💬 Поддержка", callback_data="support")],
+        [InlineKeyboardButton("💎 Подписка", callback_data="subscribe_info")],
+    ])
+
+WAITING_EMOJI = ['🐱⏳', '😺⏳', '😸⏳', '😻⏳', '🐱⌛', '😺⌛', '🔮🐱⏳', '🌟🐱⌛']
+
+def draw_natal_chart_pro(natal, city_name='', birth_time=''):
+    fig, ax = plt.subplots(figsize=(14, 14), subplot_kw={'projection': 'polar'})
+    ax.set_theta_zero_location('N'); ax.set_theta_direction(1); ax.set_ylim(0, 1.5)
+    ax.set_xticks([]); ax.set_yticks([]); ax.spines['polar'].set_visible(False)
+    ax.set_facecolor('white'); fig.patch.set_facecolor('white')
+    
+    elements = {
+        'Огонь': {'color': '#e74c3c', 'signs': ['Овен', 'Лев', 'Стрелец']},
+        'Земля': {'color': '#27ae60', 'signs': ['Телец', 'Дева', 'Козерог']},
+        'Воздух': {'color': '#8e44ad', 'signs': ['Близнецы', 'Весы', 'Водолей']},
+        'Вода': {'color': '#2980b9', 'signs': ['Рак', 'Скорпион', 'Рыбы']},
+    }
+    sign_colors = {s: d['color'] for d in elements.values() for s in d['signs']}
+    
+    asc_lon = natal.get('Асцендент', {}).get('lon', 0)
+    offset = np.radians(90) - np.radians(asc_lon)
+    
+    for i, sign in enumerate(SIGN_NAMES):
+        start_angle = np.radians(i * 30) + offset
+        end_angle = np.radians(i * 30 + 30) + offset
+        color = sign_colors.get(sign, '#2c3e50')
+        theta = np.linspace(start_angle, end_angle, 30)
+        ax.fill_between(theta, 1.05, 1.20, color=color, alpha=0.25)
+        ax.plot([start_angle, start_angle], [1.05, 1.20], color=color, linewidth=1.5, alpha=0.5)
+        mid = start_angle + np.radians(15)
+        ax.annotate(f"{SIGN_EMOJI.get(sign,'')}", xy=(mid, 1.16), ha='center', va='center', fontsize=10, color=color, weight='bold')
+        ax.annotate(sign, xy=(mid, 1.10), ha='center', va='center', fontsize=6.5, color=color, weight='bold')
+    
+    ax.plot(np.linspace(0, 2*np.pi, 300), [1.05]*300, color='#cccccc', linewidth=1, alpha=0.5)
+    ax.fill_between(np.linspace(0, 2*np.pi, 300), 0.90, 1.05, color='#fafafa', alpha=0.5)
+    
+    planet_symbols = {'Солнце': '☉', 'Луна': '☽', 'Меркурий': '☿', 'Венера': '♀', 'Марс': '♂', 'Юпитер': '♃', 'Сатурн': '♄', 'Уран': '♅', 'Нептун': '♆', 'Плутон': '♇', 'Раху': '☊', 'Кету': '☋'}
+    planet_radii = {'Плутон': 0.92, 'Нептун': 0.93, 'Уран': 0.94, 'Сатурн': 0.95, 'Юпитер': 0.96, 'Марс': 0.97, 'Венера': 0.98, 'Меркурий': 1.00, 'Луна': 1.02, 'Солнце': 1.04, 'Раху': 0.99, 'Кету': 0.91}
+    planet_positions = {}
+    
+    for name, data in natal.items():
+        if name in ['houses', 'Асцендент', 'MC', 'Десцендент', 'IC']: continue
+        angle = np.radians(SIGN_NAMES.index(data['sign']) * 30 + data['degree']) + offset
+        r = planet_radii.get(name, 0.97)
+        planet_positions[name] = (angle, r)
+        color = '#8e44ad' if name == 'Раху' else '#e67e22' if name == 'Кету' else '#1a1a1a'
+        ax.annotate(planet_symbols.get(name, ''), xy=(angle, r), ha='center', va='center', fontsize=13, color=color, weight='bold', zorder=9)
+        ax.annotate(f"{data['degree']}°", xy=(angle, r + 0.02), ha='center', va='bottom', fontsize=5.5, color=color, weight='bold')
+    
+    ax.add_artist(plt.Circle((0, 0), 0.04, color='#1a1a1a', zorder=10))
+    
+    aspect_colors = {'соединение': '#e74c3c', 'оппозиция': '#e74c3c', 'тригон': '#27ae60', 'квадрат': '#e74c3c', 'секстиль': '#2980b9'}
+    for p1, p2, asp_name, _ in get_aspects_with_angles(natal):
+        if p1 in planet_positions and p2 in planet_positions:
+            ang1, r1 = planet_positions[p1]; ang2, r2 = planet_positions[p2]
+            color = aspect_colors.get(asp_name, '#bdc3c7')
+            lw = 1.5 if asp_name in ['соединение','оппозиция','тригон'] else 1.0
+            ax.plot([ang1, ang2], [r1, r2], color=color, linewidth=lw, alpha=0.5, linestyle='--' if asp_name == 'квадрат' else '-', zorder=1)
+    
+    for i, house in enumerate(natal.get('houses', [])):
+        house_angle = np.radians(house['lon']) + offset
+        lw, alpha, color = (2.5, 0.9, '#e74c3c') if house['house_num'] in [1,4,7,10] else (1.2, 0.7, '#1a1a1a')
+        ax.plot([house_angle, house_angle], [0.90, 1.20], color=color, linewidth=lw, alpha=alpha)
+        next_angle = np.radians(natal['houses'][(i+1)%12]['lon']) + offset
+        mid_angle = (house_angle + (next_angle - house_angle) % (2*np.pi) / 2) % (2*np.pi)
+        ax.annotate(str(house['house_num']), xy=(mid_angle, 1.30), ha='center', va='center', fontsize=10, color='#1a1a1a', weight='bold', bbox=dict(boxstyle='round,pad=0.2', facecolor='white', edgecolor='#cccccc', alpha=0.9))
+        if house['house_num'] == 1: ax.annotate('ASC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
+        elif house['house_num'] == 4: ax.annotate('IC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
+        elif house['house_num'] == 7: ax.annotate('DSC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
+        elif house['house_num'] == 10: ax.annotate('MC', xy=(house_angle, 1.36), ha='center', va='center', fontsize=10, color='#e74c3c', weight='bold')
+    
+    title = 'НАТАЛЬНАЯ КАРТА'
+    if city_name: title += f' • {city_name.title()}'
+    if birth_time: title += f' • {birth_time}'
+    fig.text(0.5, 0.97, title, ha='center', va='top', fontsize=16, color='#1a1a1a', weight='bold')
+    plt.tight_layout(pad=1)
+    buf = BytesIO()
     plt.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor='white', edgecolor='none')
     buf.seek(0); plt.close()
     return buf
@@ -747,6 +1013,9 @@ async def btn(update, ctx):
         house_transits = calc_house_transits(transits, natal['houses'])
         aspects = get_aspects(natal)
         
+        # НОВОЕ: СИНТЕЗ ТРАНЗИТОВ
+        synthesis, main_planet, main_connections = build_transit_synthesis(natal, transits, transit_aspects, house_transits)
+        
         dignity_info = []
         for t_name, t_data in transits.items():
             if t_name in ['Раху', 'Кету']: continue
@@ -801,24 +1070,30 @@ async def btn(update, ctx):
                 m_house = get_house(m_lon, natal['houses'])
                 moon_data.append(f"{h:02d}:{m_sign}({m_house}д)")
             
-            prompt = f"""Анализ транзитов на день.
-{astro}
-Луна: {' → '.join(moon_data)}
+            prompt = f"""{synthesis}
 
-Найди ГЛАВНУЮ тему дня. Оцени силу планет. Дай прогноз 8-10 предл.: настроение, отношения, дела, совет."""
+ДОПОЛНИТЕЛЬНО:
+Луна сегодня: {' → '.join(moon_data)}
+{astro}
+
+Опиши главную тему дня через планету {main_planet}. Как соединяются дома, какие сферы затронуты."""
             max_tok = 500
         
         elif d == 'f_month':
-            prompt = f"""Анализ транзитов на месяц.
+            prompt = f"""{synthesis}
+
+ДОПОЛНИТЕЛЬНО:
 {astro}
 
-Найди ГЛАВНУЮ тему месяца. Оцени силу планет. Дай прогноз 12-15 предл.: любовь, карьера, энергия, совет. Упоминай конкретные дома и аспекты."""
+Опиши главную тему месяца через планету {main_planet}. Какие дома соединяются, какие сферы жизни затронуты на протяжении всего месяца. Упомяни силу планет."""
             max_tok = 1500
         else:
-            prompt = f"""Анализ транзитов на {period}.
+            prompt = f"""{synthesis}
+
+ДОПОЛНИТЕЛЬНО:
 {astro}
 
-Найди ГЛАВНУЮ тему. Оцени силу планет. Дай прогноз 8-10 предл.: любовь, карьера, энергия, совет. Упоминай дома и аспекты."""
+Опиши главную тему периода через планету {main_planet}. Какие дома соединяются, какие сферы затронуты."""
             max_tok = 700 if d == 'f_week' else 500
         
         forecast = ai_client.ask(prompt, max_tokens=max_tok, system_prompt=SYSTEM_PROMPT_FORECAST)
@@ -838,6 +1113,7 @@ async def btn(update, ctx):
         # ОЧИСТКА ПАМЯТИ ПОСЛЕ ПРОГНОЗА
         del natal, transits, transit_aspects, house_transits, aspects
         del dignity_info, transit_details, house_connections, astro
+        del synthesis, main_planet, main_connections
         del prompt, forecast
         if d == 'f_day':
             del moon_data
