@@ -993,9 +993,9 @@ async def btn(update, ctx):
                   [InlineKeyboardButton("🗓 Месяц", callback_data="f_month")], [InlineKeyboardButton("🔙 Назад", callback_data="back")]]
             await q.edit_message_text(f"✨ *{users[uid]['sign']}* — период:", reply_markup=InlineKeyboardMarkup(kb), parse_mode='Markdown')
         else:
-            await q.edit_message_text("🔮 *Если знаете время рождения-выберите С временем ,если нет - Без времени *",
+            await q.edit_message_text("🔮 *Прогноз ИИ*\n\n📝 `15.05.1990 14:30 Москва`\n📝 `15.05.1990 Москва`",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📝 С временем", 15.05.1990 14:30 Москва"), InlineKeyboardButton("📝 Без времени", 📝 `15.05.1990 Москва")],
+                    [InlineKeyboardButton("📝 С временем", callback_data="newdata"), InlineKeyboardButton("📝 Без времени", callback_data="newdata_noon")],
                     [InlineKeyboardButton("🔙 Назад", callback_data="back")]
                 ]), parse_mode='Markdown')
     
