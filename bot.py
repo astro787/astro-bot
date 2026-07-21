@@ -576,7 +576,9 @@ def draw_natal_chart_pro(natal, city_name='', birth_time=''):
     if birth_time: title += f' • {birth_time}'
     fig.text(0.5, 0.97, title, ha='center', va='top', fontsize=16, color='#1a1a1a', weight='bold')
     plt.tight_layout(pad=1)
-    buf = BytesIO(); plt.savefig(buf, format='png', dpi=200, bbox_inches='tight', facecolor='white', edgecolor='none')
+    buf = BytesIO()
+    # ИЗМЕНЕНИЕ: DPI снижен с 200 до 120
+    plt.savefig(buf, format='png', dpi=120, bbox_inches='tight', facecolor='white', edgecolor='none')
     buf.seek(0); plt.close()
     return buf
 
@@ -832,6 +834,14 @@ async def btn(update, ctx):
                     reply_markup=overview_btn() if i == 0 else None, parse_mode='Markdown')
         else:
             await update.effective_message.reply_text(f"🌟 *Прогноз на {ptitle}*\n\n❤️ Благоприятно\n💼 Сосредоточьтесь\n🌟 Слушайте интуицию", reply_markup=overview_btn(), parse_mode='Markdown')
+        
+        # ОЧИСТКА ПАМЯТИ ПОСЛЕ ПРОГНОЗА
+        del natal, transits, transit_aspects, house_transits, aspects
+        del dignity_info, transit_details, house_connections, astro
+        del prompt, forecast
+        if d == 'f_day':
+            del moon_data
+        gc.collect()
     
     elif d == 'natal':
         if uid not in users or 'sign' not in users[uid]:
@@ -923,6 +933,13 @@ async def btn(update, ctx):
                 await update.effective_message.reply_text(part, reply_markup=overview_btn() if i == len(parts)-1 else None, parse_mode='Markdown')
         else:
             await update.effective_message.reply_text(f"🌟 *Натальная карта*\n📍 {u['city'].title()}\n☀ {natal['Солнце']['sign']} | 🌙 {natal['Луна']['sign']} | ASC {asc_sign}", reply_markup=overview_btn(), parse_mode='Markdown')
+        
+        # ОЧИСТКА ПАМЯТИ ПОСЛЕ НАТАЛЬНОЙ КАРТЫ
+        img.close()
+        del natal, aspects, planet_info, img
+        del sun_aspects, moon_aspects, mer_aspects, ven_aspects, mar_aspects
+        del astro_data, prompt, forecast
+        gc.collect()
     
     elif d == 'houses':
         if uid not in users or 'sign' not in users[uid]:
