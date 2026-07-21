@@ -1290,7 +1290,7 @@ async def btn(update, ctx):
     elif d == 'support':
         await q.edit_message_text("💬 *Поддержка*\nПишите вопрос здесь.", parse_mode='Markdown')
     
-        elif d == 'newdata': 
+    elif d == 'newdata': 
         ctx.user_data['mode'] = 'newdata'
         await q.edit_message_text("📝 *Введите данные с временем и городом по образцу:*\n`15.05.1990 14:30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
     
