@@ -995,7 +995,7 @@ async def btn(update, ctx):
         else:
             await q.edit_message_text("🔮 *Если знаете время рождения-выберите С временем ,если нет - Без времени *",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📝 С временем", callback_data="newdata"), InlineKeyboardButton("📝 Без времени", callback_data="newdata_noon")],
+                    [InlineKeyboardButton("📝 С временем", 15.05.1990 14:30 Москва"), InlineKeyboardButton("📝 Без времени", 📝 `15.05.1990 Москва")],
                     [InlineKeyboardButton("🔙 Назад", callback_data="back")]
                 ]), parse_mode='Markdown')
     
