@@ -1290,8 +1290,13 @@ async def btn(update, ctx):
     elif d == 'support':
         await q.edit_message_text("💬 *Поддержка*\nПишите вопрос здесь.", parse_mode='Markdown')
     
-    elif d == 'newdata': ctx.user_data['mode'] = 'newdata'; await q.edit_message_text("📝 `ДД.ММ.ГГГГ ЧЧ:ММ Город`", reply_markup=back_btn(), parse_mode='Markdown')
-    elif d == 'newdata_noon': ctx.user_data['mode'] = 'newdata_noon'; await q.edit_message_text("📝 `ДД.ММ.ГГГГ Город`", reply_markup=back_btn(), parse_mode='Markdown')
+        elif d == 'newdata': 
+        ctx.user_data['mode'] = 'newdata'
+        await q.edit_message_text("📝 *Введите данные с временем и городом по образцу:*\n`15.05.1990 14:30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
+    
+    elif d == 'newdata_noon': 
+        ctx.user_data['mode'] = 'newdata_noon'
+        await q.edit_message_text("📝 *Введите данные без времени по образцу:*\n`15.05.1990 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'newdata_natal': ctx.user_data['mode'] = 'newdata'; await q.edit_message_text("📝 `15.05.1990 14:30 Москва`", reply_markup=back_btn(), parse_mode='Markdown')
     elif d == 'back': ctx.user_data['mode'] = ''; await q.edit_message_text("🌟 *Меню*", reply_markup=menu_btn(), parse_mode='Markdown')
 
